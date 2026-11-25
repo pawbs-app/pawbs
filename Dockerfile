@@ -13,7 +13,7 @@ RUN npm run build
 FROM alpine:3
 LABEL org.opencontainers.image.title="pawbs"       org.opencontainers.image.url="https://pawbs.app" \
       org.opencontainers.image.description="A fast, installable viewer for image boards with a compatible JSON API" \
-      org.opencontainers.image.licenses="OFL-1.1 (typeface)"
+      org.opencontainers.image.licenses="AGPL-3.0-only AND OFL-1.1"
 # nginx-mod-http-js (njs) runs the device transfer relay, deploy/sync.js.
 RUN apk add --no-cache nginx nginx-mod-http-brotli nginx-mod-http-js \
  && rm -f /etc/nginx/http.d/*.conf

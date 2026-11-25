@@ -1,7 +1,7 @@
 # pawbs: a fast, private e621 & e926 viewer
 
-**[pawbs.app](https://pawbs.app)** is a free e621 and e926 client that runs in the browser and installs
-as an app on phones, tablets and computers. No accounts of its own, no ads, no analytics: requests go
+**[pawbs.app](https://pawbs.app)** is a free, open-source e621 and e926 client that runs in the browser
+and installs as an app on phones, tablets and computers. No accounts of its own, no ads, no analytics: requests go
 straight from your browser to e621 or e926, and what you keep stays on your device.
 
 ![pawbs, a fast, private e621 and e926 viewer](public/og-image.png)
@@ -53,6 +53,16 @@ npm run build   # type-check, then build into dist/
 Vue 3, TypeScript and Vite, on Node 22. Storage keys and file formats keep the code's older name,
 `nggallery`, so existing data and backups stay compatible. More in [docs/technical.md](docs/technical.md).
 
+The code lives on GitLab, [gitlab.com/pawbs.app/pawbs](https://gitlab.com/pawbs.app/pawbs), where CI
+builds and releases it; [github.com/pawbs-app/pawbs](https://github.com/pawbs-app/pawbs) is a mirror.
+
 ## Contact
 
 Bugs and ideas: [contact@pawbs.app](mailto:contact@pawbs.app) or an issue on this repository.
+
+## License
+
+Copyright © 2026 the pawbs authors. pawbs is free software under the
+[GNU Affero General Public License v3.0](LICENSE): you may use, study, share and modify it, and if you
+run a modified version for others over a network, you must offer them its source. The Azeret Mono
+typeface is under the SIL Open Font License ([public/OFL.txt](public/OFL.txt)).
