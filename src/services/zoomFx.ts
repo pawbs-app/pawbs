@@ -49,6 +49,8 @@ export async function morph(from: Element | null | undefined, change: () => unkn
     return
   }
   running = true
+  // No gestures meanwhile (styles/fx.css): a pinch would zoom the page instead of the picture.
+  document.documentElement.classList.add('is-morphing')
   from.style.viewTransitionName = NAME
   let target: HTMLElement | null = null
   try {
@@ -64,6 +66,7 @@ export async function morph(from: Element | null | undefined, change: () => unkn
   } finally {
     from.style.viewTransitionName = ''
     if (target) (target as HTMLElement).style.viewTransitionName = ''
+    document.documentElement.classList.remove('is-morphing')
     running = false
   }
 }

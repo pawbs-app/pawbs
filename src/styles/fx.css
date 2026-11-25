@@ -266,6 +266,11 @@
     animation-duration: calc(0.3s * var(--fx-speed, 1));
   }
 }
+/* While the zoom runs, touches land on the page itself: a pinch there zoomed the whole page, and the
+   viewer, which keeps every gesture on the picture for itself, could not zoom it back out. */
+html.is-morphing {
+  touch-action: none;
+}
 
 /* ---------- decor ---------- */
 
