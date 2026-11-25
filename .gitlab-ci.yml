@@ -107,29 +107,29 @@ smoke-test:
     - |
       set -e
       for i in $(seq 1 30); do curl -fsS http://app:8080/healthz && break; sleep 1; done
-      curl -fsS http://app:8080/ | grep -q '<title>pawbs'
-      curl -fsS http://app:8080/ | grep -q '<link rel="canonical" href="https://pawbs.app/"'
-      curl -fsS http://app:8080/robots.txt | grep -q '^Sitemap: https://pawbs.app/sitemap.xml'
-      curl -fsSI http://app:8080/sitemap.xml | grep -qiE '^content-type: (application|text)/xml'
-      curl -fsSI http://app:8080/og-image.png | grep -qi '^content-type: image/png'
-      curl -fsS http://app:8080/.well-known/security.txt | grep -q '^Contact: mailto:contact@pawbs.app'
-      curl -fsSI http://app:8080/favicon.ico | grep -qi '^content-type: image/'
-      curl -fsSI http://app:8080/icons/paw.svg | grep -qi '^cache-control: no-cache'
-      curl -fsS http://app:8080/llms.txt | grep -q '^# pawbs'
+      curl -fsS http://app:8080/ | grep '<title>pawbs' > /dev/null
+      curl -fsS http://app:8080/ | grep '<link rel="canonical" href="https://pawbs.app/"' > /dev/null
+      curl -fsS http://app:8080/robots.txt | grep '^Sitemap: https://pawbs.app/sitemap.xml' > /dev/null
+      curl -fsSI http://app:8080/sitemap.xml | grep -iE '^content-type: (application|text)/xml' > /dev/null
+      curl -fsSI http://app:8080/og-image.png | grep -i '^content-type: image/png' > /dev/null
+      curl -fsS http://app:8080/.well-known/security.txt | grep '^Contact: mailto:contact@pawbs.app' > /dev/null
+      curl -fsSI http://app:8080/favicon.ico | grep -i '^content-type: image/' > /dev/null
+      curl -fsSI http://app:8080/icons/paw.svg | grep -i '^cache-control: no-cache' > /dev/null
+      curl -fsS http://app:8080/llms.txt | grep '^# pawbs' > /dev/null
       # The page itself says what pawbs is, for crawlers that do not run JavaScript.
-      curl -fsS http://app:8080/ | grep -q '<h1>pawbs: a fast, private e621'
+      curl -fsS http://app:8080/ | grep '<h1>pawbs: a fast, private e621' > /dev/null
       # The static pages (site/pages.mjs) at their clean addresses, listed in the sitemap.
       for P in features pools downloads search install faq e926 about privacy; do
-        curl -fsS "http://app:8080/$P" | grep -q '<link rel="canonical" href="https://pawbs.app/'"$P"'">'
-        curl -fsS http://app:8080/sitemap.xml | grep -q "<loc>https://pawbs.app/$P</loc>"
+        curl -fsS "http://app:8080/$P" | grep '<link rel="canonical" href="https://pawbs.app/'"$P"'">' > /dev/null
+        curl -fsS http://app:8080/sitemap.xml | grep "<loc>https://pawbs.app/$P</loc>" > /dev/null
       done
       # One address per page: a trailing slash goes to it (relative, so the CDN's host and scheme hold).
       curl -sSI 'http://app:8080/faq/?x=1' > slash.txt
       cat slash.txt
       grep -q '^HTTP/1.1 301' slash.txt
       grep -qi '^location: /faq?x=1' slash.txt
-      curl -fsSI http://app:8080/faq | grep -qi '^content-type: text/html'
-      curl -fsSI http://app:8080/faq | grep -qi '^cache-control:.*no-transform'
+      curl -fsSI http://app:8080/faq | grep -i '^content-type: text/html' > /dev/null
+      curl -fsSI http://app:8080/faq | grep -i '^cache-control:.*no-transform' > /dev/null
       curl -fsSI http://app:8080/ > headers.txt
       cat headers.txt
       grep -qi '^cache-control: no-cache' headers.txt
@@ -138,11 +138,11 @@ smoke-test:
       grep -qi '^referrer-policy: strict-origin-when-cross-origin' headers.txt
       grep -qi '^content-security-policy:' headers.txt
       grep -qi '^x-content-type-options: nosniff' headers.txt
-      curl -fsSI http://app:8080/sw.js | grep -qi '^cache-control: no-cache'
-      curl -fsSI http://app:8080/manifest.webmanifest | grep -qi '^content-type: application/manifest+json'
+      curl -fsSI http://app:8080/sw.js | grep -i '^cache-control: no-cache' > /dev/null
+      curl -fsSI http://app:8080/manifest.webmanifest | grep -i '^content-type: application/manifest+json' > /dev/null
       ASSET=$(curl -fsS http://app:8080/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1)
       test -n "$ASSET"
-      curl -fsSI "http://app:8080/$ASSET" | grep -qi '^cache-control: public, max-age=31536000, immutable'
+      curl -fsSI "http://app:8080/$ASSET" | grep -i '^cache-control: public, max-age=31536000, immutable' > /dev/null
       curl -fsS -o /dev/null -D br.txt -H 'Accept-Encoding: br, gzip' "http://app:8080/$ASSET"
       cat br.txt
       grep -qi '^content-encoding: br' br.txt
@@ -164,10 +164,10 @@ smoke-test:
       # The page "Pass the check" opens: HTML untouched by the CDN, with its own script; at /check,
       # and under the relay for app versions 1.9.17 and before.
       for C in http://app:8080/check "$R/check"; do
-        curl -fsS -D check.txt "$C" | grep -q 'check.js'
+        curl -fsS -D check.txt "$C" | grep 'check.js' > /dev/null
         grep -qi '^content-type: text/html' check.txt
         grep -qi '^cache-control:.*no-transform' check.txt
-        curl -fsSI "$C.js" | grep -qi '^content-type: .*javascript'
+        curl -fsSI "$C.js" | grep -i '^content-type: .*javascript' > /dev/null
       done
       # api <expected status> <curl args…>: prints the response body; any other status fails the job,
       # showing what came back (njs errors are in the service log, CI_DEBUG_SERVICES).
@@ -179,7 +179,7 @@ smoke-test:
       }
       is() { jq -e "$1" > /dev/null || { echo "Relay: the answer is not $1" >&2; exit 1; }; }
       api 200 "$R/health" | is '.ok == true and .ttl == 300'
-      curl -fsSI "$R/health" | grep -qi '^cache-control: no-store'
+      curl -fsSI "$R/health" | grep -i '^cache-control: no-store' > /dev/null
       S=$(api 201 -X POST -H 'Content-Type: application/json' -d '{"data":"aGVsbG8="}' "$R/slots")
       ID=$(echo "$S" | jq -r .id)
       echo "$ID" | grep -Eq '^[A-Za-z0-9_-]{22}$'
