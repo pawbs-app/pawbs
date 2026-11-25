@@ -1216,6 +1216,19 @@ onBeforeUnmount(() => {
    - two fingers: pinch to zoom around them;
    - tap: show / hide the controls, or close the details sheet; double tap: zoom in / back, or on a
      video seek back / forward on the sides and play / pause in the middle. */
+/* The page itself zoomed in by the browser (a pinch on the grid before this opened): with every touch
+   on the picture kept here, nothing could zoom it back out and the viewer stayed cropped. Until the
+   page is back at its own scale, pinches go to the browser (see .page-zoomed below). */
+const pageZoomed = ref(false)
+function notePageZoom() {
+  pageZoomed.value = (window.visualViewport?.scale ?? 1) > 1.01
+}
+onMounted(() => {
+  notePageZoom()
+  window.visualViewport?.addEventListener('resize', notePageZoom)
+})
+onBeforeUnmount(() => window.visualViewport?.removeEventListener('resize', notePageZoom))
+
 const GAP = 24 // between the picture and its neighbours while swiping
 const canvas = ref<HTMLElement | null>(null)
 const touching = ref(false) // a finger is down or a swipe is settling: neighbours are drawn
@@ -1496,7 +1509,7 @@ function beginPinch() {
     s0: disp.value.scale,
     rx: box ? (mx - box.left) / box.width : 0.5,
     ry: box ? (my - box.top) / box.height : 0.5,
-    on: !!p && p.kind !== 'video' && p.kind !== 'flash',
+    on: !!p && p.kind !== 'video' && p.kind !== 'flash' && !pageZoomed.value, // (the browser's pinch then)
   }
 }
 function pinchFrame() {
@@ -1817,7 +1830,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
   <div
     ref="root"
     class="viewer"
-    :class="{ 'is-idle': chromeAway, 'with-panel': panel, 'is-zoomed': scrollable }"
+    :class="{ 'is-idle': chromeAway, 'with-panel': panel, 'is-zoomed': scrollable, 'page-zoomed': pageZoomed }"
     tabindex="-1"
     role="dialog"
     aria-modal="true"
@@ -2185,6 +2198,10 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
   overflow: hidden;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+}
+/* The page zoomed in by the browser (see pageZoomed): a pinch here zooms it back out. */
+.viewer.page-zoomed :is(.stage, .zone) {
+  touch-action: pinch-zoom;
 }
 /* No scrollbars: they would take room from the stage, which changes the fit size (and the zoom
    level) as soon as the picture overflows. Panning is by drag, wheel, keys or finger. */
