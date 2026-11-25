@@ -1,0 +1,1280 @@
+/* Component styles of the monochrome HUD system, classes prefixed rv-. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+/* Text sizes are in rem, written as sixteenths (0.6875rem is 11px at the usual 16px): they follow
+   the reader's text size, set in the browser or, where the browser passes it on, in the system
+   (index.html: text-scale). The root's own size is left alone for that; the body sets the app's. */
+html {
+  font-family: var(--font-mono);
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+body {
+  margin: 0;
+  font-size: 0.75rem;
+  background: var(--bg);
+}
+::selection {
+  background: var(--text);
+  color: var(--bg);
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  padding: 0;
+  cursor: default;
+}
+button:disabled {
+  opacity: 0.35;
+}
+/* The focus ring: 2px in the text colour, inside the control's box (never clipped by a strip or a
+   list that scrolls). */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+.is-focus-ring {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+/* On a control already filled or framed in the text colour that ring cannot be seen, and a switch
+   is too small to hold it: there it stands off. */
+.rv-btn--primary:is(:focus-visible, .is-focus-ring),
+.rv-seg button.is-on:is(:focus-visible, .is-focus-ring),
+.rv-icon-btn.is-active:is(:focus-visible, .is-focus-ring),
+.rv-switch:is(:focus-visible, .is-focus-ring) {
+  outline-offset: 2px;
+}
+/* Pressed: a control inverts for as long as the mouse button or the finger is down (white, its text
+   in the background's colour), as anything active or selected does. The browser's own tap highlight
+   is off (Chromium on Android washes a pressed control in a translucent cyan). A button that is a
+   picture, or an unseen zone over one, takes no part (data-press="off"); a link that works as a
+   button joins in by its class, or with data-press="on". */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+button:active:not(:disabled, [data-press='off'], :has(img, video)),
+a:is(.rv-btn, .rv-small-btn, .rv-icon-btn, .link-btn, .row-main, .row-action, [data-press='on']):active {
+  background-color: var(--white) !important;
+  border-color: var(--white) !important;
+  color: var(--bg) !important;
+}
+button:active:not(:disabled, [data-press='off'], :has(img, video)) *,
+a:is(.rv-btn, .rv-small-btn, .rv-icon-btn, .link-btn, .row-main, .row-action, [data-press='on']):active * {
+  color: inherit !important;
+}
+.rv-selectable,
+code {
+  user-select: text;
+  cursor: text;
+}
+@keyframes rv-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-3);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Line icon, 16px grid (src/components/Icon.vue). */
+.rv-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+.rv-icon .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* Corner brackets: put on any box; --bc colour, --bs arm length. Comes before the boxes that use
+   it, which then set only background-color. */
+.rv-brackets {
+  --bc: var(--text-3);
+  --bs: 10px;
+  background:
+    linear-gradient(var(--bc), var(--bc)) top left / var(--bs) 1px no-repeat,
+    linear-gradient(var(--bc), var(--bc)) top left / 1px var(--bs) no-repeat,
+    linear-gradient(var(--bc), var(--bc)) top right / var(--bs) 1px no-repeat,
+    linear-gradient(var(--bc), var(--bc)) top right / 1px var(--bs) no-repeat,
+    linear-gradient(var(--bc), var(--bc)) bottom left / var(--bs) 1px no-repeat,
+    linear-gradient(var(--bc), var(--bc)) bottom left / 1px var(--bs) no-repeat,
+    linear-gradient(var(--bc), var(--bc)) bottom right / var(--bs) 1px no-repeat,
+    linear-gradient(var(--bc), var(--bc)) bottom right / 1px var(--bs) no-repeat;
+}
+
+/* Text */
+.rv-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--text-3);
+}
+.rv-label--bad {
+  color: var(--bad);
+}
+.rv-heading {
+  margin: 0;
+  font-weight: 400;
+}
+.rv-heading::before {
+  content: "// ";
+}
+.rv-hint {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+.rv-dim {
+  color: var(--text-2);
+}
+code,
+.rv-code {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 0 4px;
+  overflow-wrap: anywhere;
+}
+
+/* Button */
+.rv-btn {
+  /* 30px, and as tall as its label needs when larger text wraps it (never stretched by a row). */
+  min-height: 30px;
+  height: fit-content;
+  padding: 2px 14px;
+  border: 1px solid var(--line-3);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none; /* also a link styled as a button */
+}
+.rv-btn:hover:not(:disabled),
+.rv-btn.is-hover {
+  border-color: var(--text);
+}
+.rv-btn--primary {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+.rv-btn--primary:hover:not(:disabled),
+.rv-btn--primary.is-hover {
+  background: var(--white);
+}
+.rv-btn--danger:hover:not(:disabled),
+.rv-btn--danger.is-hover {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.rv-btn--danger-primary {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: var(--bg);
+}
+.rv-btn--danger-primary:hover:not(:disabled),
+.rv-btn--danger-primary.is-hover {
+  background: var(--danger-hover);
+}
+.rv-btn--sm {
+  min-height: 26px;
+}
+
+/* Small framed button (menus, sound panel). */
+.rv-small-btn {
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.rv-small-btn:hover:not(:disabled),
+.rv-small-btn.is-hover {
+  background: var(--hover);
+}
+.rv-small-btn--warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+/* Icon button */
+.rv-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 32px;
+  color: var(--text-2);
+  position: relative;
+}
+.rv-icon-btn:hover:not(:disabled),
+.rv-icon-btn.is-hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.rv-icon-btn.is-active {
+  color: var(--bg);
+  background: var(--text);
+}
+.rv-icon-btn.is-shaped:not(.is-active) {
+  color: var(--text);
+}
+.rv-icon-btn.is-shaped::after {
+  content: "";
+  position: absolute;
+  right: 7px;
+  top: 6px;
+  width: 4px;
+  height: 4px;
+  background: var(--ok);
+}
+
+/* Segmented control */
+.rv-seg {
+  display: inline-flex;
+  border: 1px solid var(--line-2);
+}
+.rv-seg button {
+  height: 24px;
+  padding: 0 9px;
+  white-space: nowrap;
+  border: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+.rv-seg button:hover,
+.rv-seg button.is-hover {
+  color: var(--text);
+}
+.rv-seg button.is-on {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Fields */
+.rv-field {
+  display: grid;
+  gap: 5px;
+}
+.rv-input,
+.rv-select {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-3);
+  border-radius: 0;
+  user-select: text;
+  cursor: auto;
+}
+/* A focused field: its frame in the text colour, 2px (the frame and a line inside it). */
+.rv-input:focus,
+.rv-select:focus,
+.rv-input.is-focus {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+.rv-input::placeholder {
+  color: var(--text-3);
+}
+.rv-input:disabled {
+  color: var(--text-2);
+}
+
+/* Slider: a 1px line with a square thumb. */
+.rv-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+}
+.rv-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--line-3);
+}
+.rv-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 7px;
+  height: 11px;
+  margin-top: -5px;
+  background: var(--text);
+}
+.rv-slider::-moz-range-track {
+  height: 1px;
+  background: var(--line-3);
+}
+.rv-slider::-moz-range-thumb {
+  width: 7px;
+  height: 11px;
+  border: 0;
+  border-radius: 0;
+  background: var(--text);
+}
+.rv-slider.is-muted {
+  opacity: 0.4;
+}
+
+/* Switch: a square on/off. */
+.rv-switch {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: 26px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--line-3);
+  position: relative;
+  background: transparent;
+}
+.rv-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  background: var(--text-3);
+}
+.rv-switch:checked {
+  border-color: var(--text);
+}
+.rv-switch:checked::after {
+  left: 14px;
+  background: var(--text);
+}
+
+/* Setting row: a label and its control across the width. */
+/* Label, then control. When the two do not fit side by side (a wide control on a phone), the control
+   goes under the label instead of squeezing it into a sliver. */
+.rv-setting {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.rv-setting > :first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.rv-setting.is-disabled {
+  opacity: 0.5;
+}
+
+/* Option card (choose one of a few modes). */
+.rv-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line-2);
+  padding: 12px;
+  color: var(--text-2);
+}
+.rv-card strong {
+  color: var(--text);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.6875rem;
+}
+.rv-card.is-on {
+  border-color: var(--text);
+}
+.rv-card .rv-pct {
+  width: 3.2em;
+  height: 20px;
+  padding: 0 4px;
+  margin: 0 2px;
+  text-align: right;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-3);
+}
+.rv-card .rv-nowrap {
+  white-space: nowrap;
+}
+
+/* Status square */
+.rv-dot {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--text-3);
+}
+.rv-dot--off {
+  background: transparent;
+  border: 1px solid var(--line-3);
+}
+.rv-dot--ok {
+  background: var(--ok);
+}
+.rv-dot--warn {
+  background: var(--warn);
+}
+.rv-dot--bad {
+  background: var(--bad);
+}
+.rv-dot--pulse {
+  animation: rv-pulse 1s steps(2, jump-none) infinite;
+}
+
+/* Segment meter (battery level in the device panel). */
+.rv-meter {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 2px;
+  color: var(--text);
+}
+.rv-meter span {
+  height: 8px;
+  border: 1px solid var(--line-2);
+}
+.rv-meter span.on {
+  background: currentColor;
+  border-color: currentColor;
+}
+.rv-meter--warn {
+  color: var(--warn);
+}
+.rv-meter--bad {
+  color: var(--bad);
+}
+
+/* Activity bar (link being established) */
+.rv-segbar {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 2px;
+}
+.rv-segbar span {
+  height: 6px;
+  background: var(--line-2);
+  animation: rv-seg 1.2s steps(1) infinite;
+}
+.rv-segbar span:nth-child(3n + 2) {
+  animation-delay: 0.4s;
+}
+.rv-segbar span:nth-child(3n) {
+  animation-delay: 0.8s;
+}
+@keyframes rv-seg {
+  0%,
+  66% {
+    background: var(--line-2);
+  }
+  33% {
+    background: var(--text);
+  }
+}
+
+/* Steps (OK / >> / ..) */
+.rv-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+.rv-steps .mark {
+  display: inline-block;
+  width: 34px;
+}
+.rv-steps .is-done {
+  color: var(--text-2);
+}
+.rv-steps .is-done .mark {
+  color: var(--ok);
+}
+.rv-steps .is-now {
+  color: var(--text);
+}
+.rv-steps .is-now .mark {
+  animation: rv-pulse 0.8s steps(2, jump-none) infinite;
+}
+
+/* Scan bar (searching the network) */
+.rv-scanbar {
+  height: 2px;
+  overflow: hidden;
+  background: var(--line);
+}
+.rv-scanbar span {
+  display: block;
+  width: 30%;
+  height: 100%;
+  background: var(--text);
+  animation: rv-sweep 1s linear infinite;
+}
+@keyframes rv-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+/* Flags in the title bar: REC (bad) and UPDATE (warn). */
+.rv-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+.rv-flag:hover,
+.rv-flag.is-hover {
+  background: var(--bad-wash);
+}
+.rv-flag .rec-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--bad);
+  animation: rv-pulse 1.6s steps(2, jump-none) infinite;
+}
+.rv-flag--update {
+  gap: 6px;
+  border-color: var(--warn);
+  color: var(--warn);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+}
+.rv-flag--update:hover,
+.rv-flag--update.is-hover {
+  background: var(--warn-wash);
+}
+.rv-flag--update .rv-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Banner and toast */
+.rv-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: var(--scrim-80);
+  border: 1px solid var(--line-2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
+}
+.rv-toast {
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 8px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line-3);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Overlay panel over the picture */
+.rv-panel {
+  --bc: var(--text);
+  min-width: 340px;
+  max-width: 520px;
+  padding: 20px 22px;
+  background-color: var(--scrim-75);
+  display: grid;
+  gap: 14px;
+}
+.rv-panel--alert {
+  --bc: var(--bad);
+}
+
+/* Notice: something to deal with before going on, in a bracketed box on a wash of its colour.
+   Amber (the default): it works again once dealt with, such as a check to pass or a service that
+   did not answer. Icon, label, message, then actions. */
+.rv-notice {
+  --bc: var(--warn);
+  --bs: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: var(--warn-wash);
+}
+.rv-notice > .rv-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--warn);
+}
+.rv-notice .rv-label {
+  color: var(--warn);
+}
+/* A good-news notice (an offer, not a problem): the same box in green. --flush is the colour it
+   writes itself in on (styles/fx.css). */
+.rv-notice--ok {
+  --bc: var(--ok);
+  --flush: var(--ok);
+  background-color: var(--ok-wash);
+}
+.rv-notice--ok > .rv-icon,
+.rv-notice--ok .rv-label {
+  color: var(--ok);
+}
+.rv-notice-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.rv-notice-body p {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.rv-notice-body .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rv-panel .msg {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.rv-panel .row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rv-bigplay {
+  --bc: var(--text);
+  --bs: 14px;
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  background-color: var(--scrim-50);
+}
+.rv-bigplay .rv-icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* Dropdown menu (title bar) */
+.rv-menu {
+  min-width: 280px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  padding: 4px 0;
+}
+.rv-menu--wide {
+  min-width: 330px;
+}
+.rv-menu .row {
+  display: flex;
+  align-items: stretch;
+}
+.rv-menu .row:hover,
+.rv-menu .row.is-hover {
+  background: var(--hover);
+}
+.rv-menu .row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6875rem;
+}
+.rv-menu .row-text {
+  display: grid;
+}
+.rv-menu .row-sub {
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-3);
+}
+.rv-menu .row .rv-icon-btn {
+  width: 36px;
+  height: auto;
+  opacity: 0;
+}
+.rv-menu .row:hover .rv-icon-btn,
+.rv-menu .row:focus-within .rv-icon-btn,
+.rv-menu .row.is-hover .rv-icon-btn {
+  opacity: 1;
+}
+/* A menu that picks one (the site in use): the picked row has the section lists' marker, a 2px
+   text bar at its left, in full text; the others are quieter. Its squares keep their own meaning. */
+.rv-menu--pick .row.is-on {
+  box-shadow: inset 2px 0 0 var(--text);
+}
+.rv-menu--pick .row:not(.is-on) .row-main {
+  color: var(--text-2);
+}
+.rv-menu .row-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.6875rem;
+}
+.rv-menu .row-action:hover,
+.rv-menu .row-action.is-hover {
+  background: var(--hover);
+}
+.rv-menu .toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 12px;
+}
+.rv-menu .toggle-row:hover,
+.rv-menu .toggle-row.is-hover {
+  background: var(--hover);
+}
+.rv-menu .toggle-row.sep {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+.rv-menu .about {
+  padding: 8px 12px 6px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+.rv-menu .about-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 22px;
+}
+
+/* Popover (the sound panel) */
+.rv-popover {
+  width: 360px;
+  padding: 6px 0;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+}
+.rv-popover .title {
+  padding: 6px 12px 8px;
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.rv-popover .prow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+}
+.rv-popover .prow:hover,
+.rv-popover .prow.is-hover {
+  background: var(--hover);
+}
+.rv-popover .prow.is-disabled {
+  opacity: 0.45;
+}
+.rv-popover .plabel {
+  flex: 1;
+}
+.rv-popover .rv-slider {
+  width: 120px;
+}
+.rv-popover .pval {
+  width: 48px;
+  text-align: right;
+  font-size: 0.6875rem;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.rv-popover .pstatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 22px;
+  margin-top: 4px;
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--line);
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+.rv-popover .pstatus.is-active {
+  color: var(--ok);
+}
+.rv-popover .pstatus.is-learning {
+  color: var(--warn);
+}
+.rv-popover .pstatus.is-failed {
+  color: var(--bad);
+}
+.rv-popover .plink {
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--line-2);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* Dialog */
+.rv-backdrop {
+  display: grid;
+  place-items: center;
+  background: var(--scrim-70);
+}
+.rv-dialog {
+  --bc: var(--text);
+  width: min(520px, calc(100vw - 32px));
+  padding: 0 18px 18px;
+  background-color: var(--bg);
+  border: 1px solid var(--line-2);
+}
+.rv-dialog > header {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -18px 14px;
+  padding-left: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.rv-dialog > header .rv-icon-btn {
+  width: 40px;
+  height: 40px;
+}
+.rv-dialog .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.rv-dialog .wide {
+  grid-column: 1 / -1;
+}
+.rv-dialog .rv-hint {
+  margin-top: 10px;
+}
+.rv-dialog > footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.rv-spacer {
+  flex: 1;
+}
+.rv-scan {
+  border: 1px solid var(--line);
+  padding: 10px;
+  margin-bottom: 16px;
+}
+.rv-scan .head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rv-scan .rv-scanbar {
+  margin-top: 10px;
+}
+
+/* Data list (device panel) */
+.rv-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.rv-section > .rv-heading {
+  margin: 0 0 8px;
+}
+.rv-dl {
+  display: grid;
+  grid-template-columns: max(110px, 9.2em) 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+.rv-dl dt {
+  color: var(--text-2);
+}
+.rv-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+/* Side navigation (settings) */
+.rv-nav {
+  display: flex;
+  flex-direction: column;
+  width: 210px;
+  padding: 12px 0;
+  border-right: 1px solid var(--line);
+}
+.rv-nav .head {
+  padding: 0 16px 10px;
+}
+.rv-nav button {
+  text-align: left;
+  padding: 8px 16px;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6875rem;
+}
+.rv-nav button:hover,
+.rv-nav button.is-hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.rv-nav button.is-on {
+  color: var(--text);
+  border-left-color: var(--text);
+}
+.rv-nav .status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 0.6875rem;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Title bar */
+.rv-titlebar {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.rv-titlebar .brand {
+  width: 34px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--line);
+  font-weight: 800;
+  font-size: 0.9375rem;
+}
+.rv-titlebar .dev {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--line);
+  color: var(--warn);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+.rv-titlebar .cam {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.6875rem;
+}
+.rv-titlebar .cam:hover,
+.rv-titlebar .cam.is-open {
+  background: var(--hover);
+}
+.rv-titlebar .chev {
+  color: var(--text-3);
+}
+.rv-titlebar .drag {
+  flex: 1;
+  align-self: stretch;
+}
+.rv-titlebar .rv-icon-btn {
+  width: 40px;
+  height: 100%;
+}
+.rv-titlebar .rv-flag,
+.rv-titlebar .mqtt {
+  margin-right: 10px;
+}
+.rv-titlebar .rv-battery {
+  margin-right: 8px;
+}
+.rv-titlebar .mqtt {
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+.rv-titlebar .mqtt.is-connected {
+  color: var(--text-2);
+}
+
+/* Control bar under the picture */
+.rv-controls {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  background: var(--scrim-86);
+  border-top: 1px solid var(--line);
+}
+.rv-controls .rv-slider {
+  width: 72px;
+  margin: 0 8px 0 2px;
+}
+.rv-controls .rv-seg {
+  margin-left: 6px;
+}
+.rv-controls .stats {
+  margin-right: 8px;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* HUD over the picture */
+.rv-hud {
+  position: relative;
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  transition: opacity 0.3s;
+}
+.rv-hud.is-idle {
+  opacity: 0.35;
+}
+.rv-hud .frame {
+  --bc: var(--hud-bracket);
+  --bs: 18px;
+  position: absolute;
+  inset: 0;
+}
+.rv-hud .tl,
+.rv-hud .tr {
+  position: absolute;
+  top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--hud-text);
+}
+.rv-hud .tl > span,
+.rv-hud .tr {
+  padding: 3px 7px;
+  background: var(--scrim-62);
+}
+.rv-hud .tl {
+  left: 14px;
+}
+.rv-hud .tr {
+  right: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.rv-hud .rec {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+.rv-hud .rec::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--text-3);
+}
+.rv-hud .rec.is-on {
+  color: var(--white);
+}
+.rv-hud .rec.is-on::before {
+  background: var(--bad);
+  animation: rv-pulse 1.6s steps(2, jump-none) infinite;
+}
+.rv-hud .zoom-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px 3px 7px;
+  background: var(--scrim-62);
+  color: var(--white);
+  letter-spacing: inherit;
+}
+.rv-hud .zoom-chip:hover,
+.rv-hud .zoom-chip.is-hover {
+  background: var(--text);
+  color: var(--bg);
+}
+.rv-hud .zoom-chip .rv-icon {
+  width: 10px;
+  height: 10px;
+}
+
+
+/* Larger text (the reader's own text size, to 200% and beyond): a control grows with its text
+   instead of cutting it. At the usual size these floors are under each control's own height and
+   change nothing. (A button already grows: see .rv-btn.) */
+.rv-small-btn,
+.rv-seg button,
+.rv-input,
+.rv-select,
+.rv-card .rv-pct,
+.rv-flag,
+.chip {
+  min-height: calc(1.45em + 4px);
+}
+
+/* Touch screens. Fingers need targets of about 40px, and no control may wait for a hover that never
+   comes. On iOS (and iPadOS) fields also need 16px text, or the whole page zooms in when one is
+   focused; other systems do not zoom, and keep the fields' own size (16px looked oversized on an
+   Android tablet). -webkit-touch-callout exists only in iOS's WebKit. */
+@media (pointer: coarse) {
+  :root {
+    --bar-h: max(44px, calc(1rem + 28px));
+  }
+  @supports (-webkit-touch-callout: none) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+  /* (Icon buttons and buttons: see the touch block in app.css.) */
+  .rv-small-btn {
+    height: 30px;
+  }
+  /* Small controls keep their size and get a larger tap area: it reaches past their frame, to
+     40px or more. */
+  .rv-small-btn,
+  .rv-seg button,
+  .rv-hud .zoom-chip {
+    position: relative;
+  }
+  .rv-small-btn::after,
+  .rv-seg button::after,
+  .rv-hud .zoom-chip::after {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+  }
+  .rv-seg button::after {
+    inset: -4px 0;
+  }
+  .rv-hud .zoom-chip::after {
+    inset: -10px -6px;
+  }
+  /* min-height, not height: pages set their own field heights, and textareas grow. */
+  input.rv-input,
+  select.rv-select {
+    min-height: 38px;
+  }
+  .chip {
+    min-height: 32px;
+  }
+  .rv-seg button {
+    height: 34px;
+    padding: 0 11px;
+  }
+  .rv-switch {
+    width: 40px;
+    height: 22px;
+  }
+  .rv-switch::after {
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+  }
+  .rv-switch:checked::after {
+    left: 21px;
+  }
+  .rv-slider {
+    height: 30px;
+  }
+  .rv-slider::-webkit-slider-thumb {
+    width: 14px;
+    height: 22px;
+    margin-top: -11px;
+  }
+  .rv-slider::-moz-range-thumb {
+    width: 14px;
+    height: 22px;
+  }
+  .rv-menu .row-main,
+  .rv-menu .row-action,
+  .rv-menu .toggle-row {
+    min-height: 44px;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .rv-menu .row .rv-icon-btn {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,14 @@
+node_modules
+dist
+dev-dist
+.git
+.gitignore
+.gitlab-ci.yml
+.vscode
+.idea
+*.log
+*.local
+Dockerfile
+.dockerignore
+deploy/docker-compose.yml
+README.md

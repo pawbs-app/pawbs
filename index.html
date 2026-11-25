@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- System bar colour: near-black (#000000 can be taken as unset and turn grey), the same in dark
+         and light mode; the plain tag last is the fallback for browsers without media support. -->
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#010101" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#010101" />
+    <meta name="theme-color" content="#010101" />
+    <meta name="color-scheme" content="dark" />
+    <!-- The system's text size (Android's font size setting) scales the root's default size, and so
+         every text size in the app (all in rem), where the browser supports it. -->
+    <meta name="text-scale" content="scale" />
+    <!-- File hosts refuse image and video requests that carry no Referer: send the origin. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <!-- Search engines and link previews. Hash routes are one page to search engines: everything
+         points at the root.
+         The same title is set again by the router (src/router.ts) on Home and Set up. -->
+    <title>pawbs · fast, private e621 &amp; e926 viewer and client</title>
+    <meta name="description" content="pawbs is a fast, private e621 and e926 viewer and browser: tag search, favourites, pools, sets and followed tags. A free e621 client app, no tracking or ads." />
+    <meta name="keywords" content="e621 viewer, e621 browser, e621 client, e621 app, e621 gallery, e926 viewer, e926 browser, e926 client, e621 downloader, e621 pools reader, furry art viewer" />
+    <link rel="canonical" href="https://pawbs.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="application-name" content="pawbs" />
+    <meta name="apple-mobile-web-app-title" content="pawbs" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="pawbs" />
+    <meta property="og:url" content="https://pawbs.app/" />
+    <meta property="og:title" content="pawbs · fast, private e621 &amp; e926 viewer and client" />
+    <meta property="og:description" content="Browse e621 and e926 fast: tag search, favourites, pools, sets and followed tags. A free e621 client, no ads, no tracking." />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://pawbs.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The pawbs paw mark beside the name: fast, private gallery viewer for image boards." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="pawbs · fast, private e621 &amp; e926 viewer and client" />
+    <meta name="twitter:description" content="Browse e621 and e926 fast: tag search, favourites, pools, sets and followed tags. A free e621 client, no ads, no tracking." />
+    <meta name="twitter:image" content="https://pawbs.app/og-image.png" />
+    <meta name="twitter:image:alt" content="The pawbs paw mark beside the name: fast, private gallery viewer for image boards." />
+    <!-- Structured data (a data block, never run: the CSP's script-src does not apply to it). The
+         WebSite entry gives search results the site name "pawbs". -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://pawbs.app/#org",
+            "name": "pawbs",
+            "url": "https://pawbs.app/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://pawbs.app/icons/paw-512.png",
+              "width": 512,
+              "height": 512
+            },
+            "email": "contact@pawbs.app",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "contact@pawbs.app",
+              "availableLanguage": [
+                "en"
+              ]
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://pawbs.app/#website",
+            "url": "https://pawbs.app/",
+            "name": "pawbs",
+            "alternateName": [
+              "pawbs.app",
+              "pawbs e621 viewer"
+            ],
+            "description": "A fast, private e621 and e926 viewer and browser.",
+            "inLanguage": "en",
+            "publisher": {
+              "@id": "https://pawbs.app/#org"
+            }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://pawbs.app/#page",
+            "url": "https://pawbs.app/",
+            "name": "pawbs · fast, private e621 & e926 viewer and client",
+            "inLanguage": "en",
+            "isPartOf": {
+              "@id": "https://pawbs.app/#website"
+            },
+            "about": {
+              "@id": "https://pawbs.app/#app"
+            },
+            "mainEntity": {
+              "@id": "https://pawbs.app/#app"
+            },
+            "primaryImageOfPage": {
+              "@type": "ImageObject",
+              "url": "https://pawbs.app/og-image.png",
+              "width": 1200,
+              "height": 630
+            },
+            "datePublished": "2026-11-21",
+            "dateModified": "{{BUILD_DATE}}"
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://pawbs.app/#app",
+            "name": "pawbs",
+            "alternateName": "pawbs e621 viewer",
+            "url": "https://pawbs.app/",
+            "image": "https://pawbs.app/og-image.png",
+            "description": "pawbs is a fast, private viewer and browser for e621 and e926 (and other boards with the same API): tag search with autocomplete, favourites, pools, sets and followed tags. A free e621 client that installs as an app, opens offline and keeps everything in the browser.",
+            "keywords": "e621 viewer, e621 browser, e621 client, e621 app, e621 gallery, e926 viewer, e926 browser, e926 client, e621 downloader, e621 pools reader, furry art viewer",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "e621 and e926 viewer",
+            "operatingSystem": "Any (web browser): Windows, macOS, Linux, ChromeOS, Android, iOS, iPadOS",
+            "browserRequirements": "Requires JavaScript and a modern browser.",
+            "installUrl": "https://pawbs.app/install",
+            "softwareHelp": {
+              "@type": "CreativeWork",
+              "name": "pawbs FAQ",
+              "url": "https://pawbs.app/faq"
+            },
+            "mainEntityOfPage": {
+              "@id": "https://pawbs.app/#page"
+            },
+            "softwareVersion": "{{APP_VERSION}}",
+            "datePublished": "2026-11-21",
+            "dateModified": "{{BUILD_DATE}}",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "EUR"
+            },
+            "featureList": [
+              "e621 and e926 tag search with autocomplete and a query assistant",
+              "Saved searches, history, trending and rising tags",
+              "Followed tags with new-post counts",
+              "e621 pools read in order, sets and popular posts",
+              "Favourites and collections, plus e621 account favourites",
+              "Similar pictures and artist links",
+              "Zoom, slideshow, video controls with A-B loop, keyboard shortcuts, touch gestures",
+              "Blacklist, imported from the e621 account",
+              "Downloads, one by one or as link lists for a download manager",
+              "Installable app that opens offline",
+              "Encrypted transfer between devices and backup files",
+              "No tracking, no ads, no account of its own"
+            ],
+            "inLanguage": "en",
+            "isPartOf": {
+              "@id": "https://pawbs.app/#website"
+            },
+            "publisher": {
+              "@id": "https://pawbs.app/#org"
+            },
+            "author": {
+              "@id": "https://pawbs.app/#org"
+            }
+          }
+        ]
+      }
+    </script>
+
+    <!-- Icons under icons/: a new folder or file name whenever the icon changes, or caches keep the old one. -->
+    <link rel="icon" href="./icons/paw.svg" type="image/svg+xml" />
+    <link rel="icon" href="./icons/paw-48.png" type="image/png" sizes="48x48" />
+    <link rel="apple-touch-icon" href="./icons/paw-180.png" />
+    <!-- The typeface, fetched along with the stylesheet instead of after it. -->
+    <link rel="preload" href="./src/assets/fonts/azeret-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <noscript><style>#boot { display: none; }</style></noscript>
+    <style>
+      html, body { margin: 0; background: #000; color: #f2f2f2; }
+      #boot { position: fixed; inset: 0; z-index: 1; background: #000; display: grid; place-content: center; justify-items: center; gap: 12px; font: 0.625rem/1.45 ui-monospace, monospace; letter-spacing: .16em; color: #848484; }
+      #boot .bp { position: relative; width: 220px; height: 18px; background:
+        linear-gradient(#9b9b9b,#9b9b9b) top left/7px 1px no-repeat, linear-gradient(#9b9b9b,#9b9b9b) top left/1px 7px no-repeat,
+        linear-gradient(#9b9b9b,#9b9b9b) top right/7px 1px no-repeat, linear-gradient(#9b9b9b,#9b9b9b) top right/1px 7px no-repeat,
+        linear-gradient(#9b9b9b,#9b9b9b) bottom left/7px 1px no-repeat, linear-gradient(#9b9b9b,#9b9b9b) bottom left/1px 7px no-repeat,
+        linear-gradient(#9b9b9b,#9b9b9b) bottom right/7px 1px no-repeat, linear-gradient(#9b9b9b,#9b9b9b) bottom right/1px 7px no-repeat; }
+      #boot .bp i { position: absolute; inset: 4px 5px; overflow: hidden; }
+      #boot .bp i::before { content: ''; position: absolute; top: 0; bottom: 0; left: -14px; right: 0; opacity: .85; background-image: linear-gradient(135deg, #f2f2f2 0 10.5%, transparent 14.5% 35.5%, #f2f2f2 39.5% 60.5%, transparent 64.5% 85.5%, #f2f2f2 89.5%); background-size: 14px 14px; animation: bp-run .55s linear infinite; will-change: transform; }
+      @keyframes bp-run { from { transform: translateX(0); } to { transform: translateX(14px); } }
+      @media (prefers-reduced-motion: reduce) { #boot .bp i::before { animation: none; } }
+      /* What pawbs is (body): read by crawlers, shown without JavaScript, covered by the loader otherwise. */
+      #landing { max-width: 640px; margin: 0 auto; padding: 48px 16px 64px; font: 0.8125rem/1.65 ui-monospace, monospace; color: #b4b4b4; }
+      #landing h1 { margin: 0 0 12px; font-size: 1.5rem; line-height: 1.25; color: #f2f2f2; }
+      #landing h2 { margin: 32px 0 8px; font-size: 0.75rem; letter-spacing: .14em; text-transform: uppercase; color: #848484; }
+      #landing h3 { margin: 18px 0 4px; font-size: 0.8125rem; color: #f2f2f2; }
+      #landing p, #landing ul { margin: 0 0 8px; }
+      #landing ul { padding-left: 2ch; }
+      #landing .lede { color: #f2f2f2; }
+      #landing a { color: #f2f2f2; }
+      #landing .more { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 32px; text-transform: uppercase; letter-spacing: .1em; font-size: 0.6875rem; }
+      #landing footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #333; color: #848484; }
+      /* With the app running: gone, except under the first screen of a first visit (set up, no site
+         yet), in the app's typeface, as text to read and select. */
+      .app-on #landing { display: none; }
+      .app-on.first-visit #landing { display: block; font-family: inherit; user-select: text; cursor: auto; }
+      .app-on.first-visit #landing a { cursor: pointer; }
+      .app-on.first-visit.asking-age #landing { display: none; }
+    </style>
+  </head>
+  <body>
+    <!-- #app: the loader, which covers the page until the app replaces it. After it, what pawbs is,
+         in plain HTML: read by search engines and crawlers that do not run JavaScript, shown without
+         JavaScript (the loader is hidden: see the noscript style above), and, once the app runs, kept
+         under the first screen of a first visit only (the classes on <html>: src/main.ts and
+         src/router.ts), so the page a search engine renders holds the same text. The full FAQ, with its
+         structured data, is the /faq page (site/pages.mjs). -->
+    <div id="app">
+      <div id="boot"><div class="bp"><i></i></div>pawbs</div>
+    </div>
+    <div id="landing">
+        <header>
+          <h1>pawbs: a fast, private e621 &amp; e926 viewer</h1>
+          <p class="lede">pawbs is a free e621 client that runs in your browser. Search, browse and save posts from e621 and e926 in a fast, clean interface, with no ads, no tracking and nothing to install from an app store. e621 is a furry art archive for adults; e926 is its safe-for-work version.</p>
+        </header>
+
+        <section>
+          <h2>What you can do</h2>
+          <ul>
+            <li>Search tags with autocomplete (aliases, post counts, categories) and a query assistant that writes e621's search syntax for you</li>
+            <li>Save searches, keep your history, and see the tags trending and rising today</li>
+            <li>Follow tags and see how many new posts each one got since you last looked</li>
+            <li>Read pools in order, browse sets, and see popular posts by day, week or month</li>
+            <li>Keep favourites and collections, plus your e621 favourites when you sign in</li>
+            <li>Find similar pictures, and an artist's other galleries and links</li>
+            <li>View posts with zoom, slideshow, video controls with an A-B loop, keyboard shortcuts and touch gestures</li>
+            <li>Hide what you never want to see with a blacklist (yours is imported from your e621 account)</li>
+            <li>Download posts one by one or many at once, such as a whole pool, as a link list for your download manager</li>
+            <li>Move everything to another device with an encrypted transfer, or keep a backup file</li>
+          </ul>
+          <p><a href="/features">All pawbs features</a>, and more on <a href="/search">e621 search</a>, the <a href="/pools">pool reader</a> and <a href="/downloads">downloads</a>.</p>
+        </section>
+
+        <section>
+          <h2>On every device</h2>
+          <p>pawbs is a progressive web app (PWA), made for mobile as much as for desktop: open pawbs.app in any modern browser. Add it to your home screen on iPhone, iPad or Android, or install it on Windows, macOS, Linux or ChromeOS: it opens in its own window like an app, and starts even when you are offline. <a href="/install">How to install pawbs on iPhone, Android and desktop</a></p>
+        </section>
+
+        <section>
+          <h2>Questions</h2>
+          <h3>Is pawbs affiliated with e621?</h3>
+          <p>No. pawbs is an independent, unofficial client. It talks to e621 and e926 through their public API.</p>
+          <h3>Do I need an e621 account?</h3>
+          <p>No, you can browse as a guest. To see your favourites and sets, sign in with your e621 user name and an API key from your e621 account settings, never your password.</p>
+          <h3>Where does my data go?</h3>
+          <p>Your searches, favourites, follows and settings stay in your browser. Requests go straight from your browser to e621 or e926, and your API key is only ever sent to them. pawbs has no accounts, no analytics and no ads. Details on the <a href="/privacy">privacy page</a>.</p>
+          <h3>How do I install pawbs on an iPhone?</h3>
+          <p>Open pawbs.app in Safari, tap Share, then Add to Home Screen. On Android, choose Install app in the browser menu; on a computer, use the install button in the address bar of Chrome or Edge.</p>
+          <h3>What is e926?</h3>
+          <p>e926 is the safe-for-work version of e621. pawbs works with both: pick the one you want when you set it up. See <a href="/e926">pawbs for e926</a>.</p>
+          <h3>Is pawbs free?</h3>
+          <p>Yes, pawbs is free to use.</p>
+          <p><a href="/faq">More questions and answers</a></p>
+        </section>
+
+        <nav class="more" aria-label="More about pawbs">
+          <a href="/features">Features</a> <a href="/search">Search</a> <a href="/pools">Pools</a> <a href="/downloads">Downloads</a> <a href="/install">Install</a> <a href="/faq">FAQ</a> <a href="/e926">e926</a> <a href="/about">About</a> <a href="/privacy">Privacy</a>
+        </nav>
+
+        <footer>
+          <p>pawbs is an independent project, not affiliated with e621 or e926. Contact: <a href="mailto:contact@pawbs.app">contact@pawbs.app</a></p>
+        </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

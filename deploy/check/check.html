@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- The page the app's "Pass the check" opens (Settings, Receive). A CDN in front of the site may
+     hold this browser's requests for a check, which only a page opened in the browser can show and
+     pass. Once this page has loaded, check.js asks the site and its transfer relay, going to the check
+     page of whichever is still held; when neither is, the app is told (it asks again at once) and this
+     tab closes itself. Served by nginx at /check, and at /sync/v1/check for app versions 1.9.17 and before. -->
+<html lang="en" data-state="checking">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<title>Check · pawbs</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #e8e8e8; }
+  body { font: 12px/1.45 ui-monospace, monospace; -webkit-font-smoothing: antialiased; }
+  main { min-height: 100%; display: grid; place-items: center; padding: 16px; box-sizing: border-box; }
+  .panel {
+    --bc: #6f6f6f;
+    width: min(440px, 100%);
+    box-sizing: border-box;
+    padding: 20px 22px;
+    display: grid;
+    gap: 10px;
+    background:
+      linear-gradient(var(--bc), var(--bc)) top left / 10px 1px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) top left / 1px 10px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) top right / 10px 1px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) top right / 1px 10px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom left / 10px 1px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom left / 1px 10px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom right / 10px 1px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom right / 1px 10px no-repeat;
+  }
+  .label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6f6f; }
+  p { margin: 0; color: #9b9b9b; }
+  [data-show] { display: none; }
+  html[data-state='checking'] [data-show='checking'],
+  html[data-state='ok'] [data-show='ok'],
+  html[data-state='fail'] [data-show='fail'],
+  html[data-state='off'] [data-show='off'] { display: block; }
+  html[data-state='ok'] .panel { --bc: #3ddc84; }
+  html[data-state='ok'] .label { color: #3ddc84; }
+  html[data-state='fail'] .panel, html[data-state='off'] .panel { --bc: #ffb020; }
+  html[data-state='fail'] .label, html[data-state='off'] .label { color: #ffb020; }
+</style>
+<script src="check.js" defer></script>
+</head>
+<body>
+<main>
+  <div class="panel" role="status">
+    <div class="label" data-show="checking">Check</div>
+    <p data-show="checking">Checking that the pawbs server lets this browser through…</p>
+    <div class="label" data-show="ok">Check passed</div>
+    <p data-show="ok">pawbs reaches its server again. This tab closes on its own; if it stays open, close it and go back to pawbs.</p>
+    <div class="label" data-show="fail">Still held</div>
+    <p data-show="fail">The site’s protection still holds this browser back. Reload this page to try again.</p>
+    <div class="label" data-show="off">No answer</div>
+    <p data-show="off">The pawbs server did not answer: check the connection, then reload this page.</p>
+  </div>
+</main>
+</body>
+</html>

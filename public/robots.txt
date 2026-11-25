@@ -1,0 +1,8 @@
+# pawbs.app: the app is one page (its views live after the "#"). The device transfer relay and the
+# CDN check page are for the app, not for search results.
+User-agent: *
+Allow: /
+Disallow: /sync/
+Disallow: /check
+
+Sitemap: https://pawbs.app/sitemap.xml

@@ -1,0 +1,636 @@
+/* App layout and shared pieces beyond the component library. */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+body {
+  min-height: 100dvh;
+}
+a {
+  color: inherit;
+}
+img,
+video {
+  -webkit-user-drag: none;
+}
+input,
+textarea,
+select {
+  font: inherit;
+}
+textarea.rv-input {
+  height: auto;
+  min-height: 120px;
+  padding: 8px 10px;
+  line-height: 1.6;
+  resize: vertical;
+  background: var(--panel);
+}
+html.is-locked {
+  overflow: hidden;
+}
+html.is-locked body {
+  overflow: hidden;
+}
+
+/* Page frame */
+.page {
+  padding: 0 var(--space-12) var(--space-24);
+  max-width: 100%;
+}
+.page-narrow {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-12) 48px;
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--space-10);
+  position: sticky;
+  top: var(--bar-h);
+  background: var(--bg);
+  z-index: 20;
+}
+.page-head h1 {
+  /* Never squeezed to nothing by the page's buttons: they wrap onto a second line instead. */
+  min-width: min(100%, 13ch);
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+/* Phones: a long title (a search, a pool's name) on two lines rather than cut after a dozen letters. */
+@media (max-width: 560px) {
+  .page-head h1.ellipsis {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+  }
+  /* A long one (a search, a pool's name: `wide-title`) gets the whole first row; the page's buttons
+     share the row below, closer together so they keep to one. */
+  .page-head:has(h1.wide-title) {
+    column-gap: 6px;
+  }
+  .page-head h1.wide-title {
+    flex-basis: 100%;
+  }
+}
+.readout {
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.readout b {
+  font-weight: 400;
+  color: var(--text);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+.caps {
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.muted {
+  color: var(--text-2);
+}
+.faint {
+  color: var(--text-3);
+}
+.bad {
+  color: var(--bad);
+}
+.warn {
+  color: var(--warn);
+}
+.ok {
+  color: var(--ok);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.link-btn {
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-3);
+  text-underline-offset: 3px;
+}
+.link-btn:hover {
+  text-decoration-color: var(--text);
+}
+@media (pointer: coarse) {
+  /* A taller tap area for a finger, the padding taken back by margins (same layout). */
+  .link-btn {
+    padding: 8px 4px;
+    margin: -8px -4px;
+  }
+}
+
+/* Section blocks used on Home, Settings, Following */
+.block {
+  padding: var(--space-14) 0;
+  border-bottom: 1px solid var(--line);
+}
+.block > .rv-heading {
+  margin-bottom: var(--space-10);
+}
+.block-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  margin-bottom: var(--space-10);
+}
+.block-head .rv-heading {
+  flex: 1;
+}
+
+/* A list of framed rows (saved searches, follows, pools). minmax(0, …): a long one-line entry
+   ellipsizes instead of widening the list past the screen. */
+.rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--line-2);
+}
+.rows > .r {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 38px;
+  padding: 0 0 0 var(--space-12);
+  border-bottom: 1px solid var(--line);
+}
+.rows > .r:last-child {
+  border-bottom: 0;
+}
+.rows > .r:hover {
+  background: var(--hover);
+}
+.rows > .r .main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  align-self: stretch;
+  border: 0;
+  text-align: left;
+  padding: 8px 0;
+}
+/* No tools after it (a followed tag on Home): its end keeps off the frame, as its start does. */
+.rows > .r .main:last-child {
+  padding-right: var(--space-12);
+}
+.rows > .r .sub {
+  color: var(--text-3);
+  font-size: 0.6875rem;
+}
+.rows > .r .rv-icon-btn {
+  align-self: stretch;
+  height: auto;
+}
+.rows > .r .tools {
+  display: flex;
+  align-self: stretch;
+  opacity: 0;
+}
+.rows > .r:hover .tools,
+.rows > .r:focus-within .tools {
+  opacity: 1;
+}
+@media (hover: none), (pointer: coarse) {
+  .rows > .r .tools {
+    opacity: 1;
+  }
+}
+
+/* Chips: query terms */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--line-2);
+  font-size: 0.6875rem;
+  color: var(--text);
+  max-width: 100%;
+}
+.chip .x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-3);
+  border: 0;
+}
+.chip .x:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.chip .x .rv-icon {
+  width: 10px;
+  height: 10px;
+}
+.chip.is-not {
+  border-style: dashed;
+  color: var(--text-2);
+}
+.chip.is-not::before {
+  content: 'NOT';
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+.chip.is-or::before {
+  content: 'OR';
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+.chip.is-meta {
+  background: var(--panel);
+}
+.chip .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip .cat {
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+button.chip:hover {
+  border-color: var(--text);
+}
+
+/* Suggestion list (autocomplete) */
+.suggest {
+  position: absolute;
+  z-index: 60;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  padding: 4px 0;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+.suggest .opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  text-align: left;
+  min-height: 28px;
+}
+.suggest .opt.is-on,
+.suggest .opt:hover {
+  background: var(--hover);
+}
+.suggest .opt .n {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggest .opt .n mark {
+  background: transparent;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.suggest .opt .from {
+  color: var(--text-3);
+  font-size: 0.6875rem;
+}
+.suggest .opt .cat {
+  width: max(74px, 8.2em);
+  flex: none;
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.suggest .opt .count {
+  font-size: 0.6875rem;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.suggest .group {
+  padding: 8px 12px 4px;
+  font-size: 0.625rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.suggest .group::before {
+  content: '// ';
+}
+
+/* Tag categories in the sites' colours (text), with --cat set for marks that need the colour as a fill. */
+.cat-0 {
+  --cat: var(--tag-general);
+  color: var(--cat);
+}
+.cat-1 {
+  --cat: var(--tag-artist);
+  color: var(--cat);
+}
+.cat-2 {
+  --cat: var(--tag-contributor);
+  color: var(--cat);
+}
+.cat-3 {
+  --cat: var(--tag-copyright);
+  color: var(--cat);
+}
+.cat-4 {
+  --cat: var(--tag-character);
+  color: var(--cat);
+}
+.cat-5 {
+  --cat: var(--tag-species);
+  color: var(--cat);
+}
+.cat-6 {
+  --cat: var(--tag-invalid);
+  color: var(--cat);
+}
+.cat-7 {
+  --cat: var(--tag-meta);
+  color: var(--cat);
+}
+.cat-8 {
+  --cat: var(--tag-lore);
+  color: var(--cat);
+}
+/* A 7px category square, the system's status mark, in the category's colour. */
+.catmark {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--cat, var(--text-3));
+}
+
+/* DText */
+.dtext {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+.dtext p {
+  margin: 0 0 8px;
+}
+.dtext .dt-h {
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6875rem;
+}
+.dtext a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-3);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.dtext a:hover {
+  text-decoration-color: var(--text);
+}
+.dtext blockquote {
+  margin: 0 0 8px;
+  padding: 2px 0 2px 10px;
+  border-left: 1px solid var(--line-3);
+}
+.dtext ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.dtext details {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  margin: 0 0 8px;
+}
+.dtext summary {
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6875rem;
+}
+.dtext .dt-code {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+.dtext .dt-spoiler {
+  background: var(--text-3);
+  color: transparent;
+}
+.dtext .dt-spoiler:hover,
+.dtext .dt-spoiler:focus {
+  background: transparent;
+  color: var(--text);
+}
+
+/* Empty and error states inside a page */
+.state {
+  display: grid;
+  place-items: center;
+  min-height: 46vh;
+  padding: var(--space-24) 0;
+}
+
+/* Thin progress line under a bar while something loads */
+.loadline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--bar-h);
+  height: 2px;
+  z-index: 90;
+  overflow: hidden;
+  pointer-events: none;
+}
+.loadline span {
+  display: block;
+  width: 30%;
+  height: 100%;
+  background: var(--text);
+  animation: rv-sweep 1s linear infinite;
+}
+
+/* Development builds: post pictures are blurred until revealed one at a time in the viewer. */
+.dev-blur img,
+.dev-blur video {
+  filter: blur(16px);
+}
+.dev-blur .viewer .media {
+  overflow: hidden;
+}
+.dev-blur .viewer .media img,
+.dev-blur .viewer .media video {
+  filter: blur(40px);
+}
+.dev-blur .viewer .media.is-unblurred img,
+.dev-blur .viewer .media.is-unblurred video {
+  filter: none;
+}
+
+/* Loading: a black and white barber pole running in a bracketed slot.
+   Stripes are 45° bands on a 14px tile (two per tile, so the tile repeats seamlessly). Each edge
+   fades over ~0.8px instead of a hard stop, which is what keeps diagonals from stepping, and the band
+   moves by transform (sub-pixel, on the GPU) rather than background-position (whole pixels). */
+.pole {
+  --bc: var(--text-2);
+  --bs: 7px;
+  position: relative;
+  height: 18px;
+  width: 100%;
+}
+.pole .stripes {
+  position: absolute;
+  inset: 4px 5px;
+  overflow: hidden;
+}
+.pole .stripes::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -14px;
+  right: 0;
+  background-image: linear-gradient(
+    135deg,
+    var(--text) 0 10.5%,
+    transparent 14.5% 35.5%,
+    var(--text) 39.5% 60.5%,
+    transparent 64.5% 85.5%,
+    var(--text) 89.5%
+  );
+  background-size: 14px 14px;
+  opacity: 0.85;
+  animation: pole-run 0.55s linear infinite;
+  will-change: transform;
+}
+@keyframes pole-run {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(14px);
+  }
+}
+
+/* Touch screens get larger targets. */
+@media (pointer: coarse) {
+  /* A chip that is a button, and a chip's remove button: a tap area past their frame (base.css). */
+  button.chip,
+  .chip .x {
+    position: relative;
+  }
+  button.chip::after,
+  .chip .x::after {
+    content: '';
+    position: absolute;
+    inset: -5px 0;
+  }
+  .chip .x {
+    width: 30px;
+    height: 30px;
+    margin: 0 -4px;
+  }
+  .rv-icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .rv-btn {
+    min-height: 36px;
+  }
+  .suggest .opt {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- the phone shell (640px wide or less, components/TabBar) ---------- */
+/* --tabbar: the room the tab bar takes at the bottom (with the home indicator's): the page ends above
+   it, and what floats at the bottom (toasts, the selection bar, notices) stands on it. */
+@media (max-width: 640px) {
+  :root.has-tabbar {
+    --tabbar: calc(56px + env(safe-area-inset-bottom));
+  }
+  /* (The page's own <main> only: the gallery's picture and the rows' text are `.main` too, and the
+     padding squashed the picture into the top of its box, its placeholder showing under it.) */
+  :root.has-tabbar main.main {
+    padding-bottom: var(--tabbar);
+  }
+}
+@media (max-width: 640px) {
+  /* A page head with its "⋯" (components/PageMore): the small icon buttons and the grid's layout
+     controls go into that sheet; buttons with words, and any marked data-keep, stay. */
+  .page-head:has(.page-more) > .rv-icon-btn:not([data-keep]),
+  .page-head:has(.page-more) .gtools {
+    display: none;
+  }
+}

@@ -1,0 +1,41 @@
+# pawbs
+
+> pawbs (https://pawbs.app) is a free, fast and private e621 and e926 viewer: an unofficial e621 client that runs in the browser and installs as an app on phones, tablets and computers. It is not affiliated with e621 or e926.
+
+pawbs talks to e621 and e926 through their public API, straight from the user's browser. It has no accounts of its own, no analytics and no ads. Searches, favourites, followed tags and settings stay in the browser. Signing in is optional and uses an e621 user name and API key, which is only ever sent to e621.
+
+## Facts
+
+- Price: free, no ads, no paid tier
+- Type: progressive web app (PWA), an alternative front end for e621 and e926; it hosts no content
+- Works with: e621 (adult, 18+), e926 (safe for work), and other boards that offer e621's API
+- Platforms: iPhone, iPad, Android, Windows, macOS, Linux, ChromeOS, any modern browser
+- Account: none needed; optional e621 user name and API key, never the password
+
+## Features
+
+- Tag search with autocomplete (aliases, post counts, categories) and a query assistant for e621's search syntax
+- Saved searches, history, trending and rising tags
+- Followed tags with counts of new posts since the last look
+- Pools read in order, sets, and popular posts by day, week or month
+- Favourites and collections, plus the e621 account's favourites when signed in
+- Similar pictures and artist links
+- Viewer with zoom, slideshow, video controls with an A-B loop, keyboard shortcuts and touch gestures
+- Blacklist, imported from the e621 account
+- Downloads one by one, or many at once (such as a whole pool) as a link list for a download manager
+- Encrypted transfer of all data to another device, and backup files
+- Installs as an app (iPhone and iPad: Safari, Share, Add to Home Screen; Android, Windows, macOS, Linux, ChromeOS: the browser's install option) and starts offline
+
+## Links
+
+- [pawbs](https://pawbs.app/): the app itself
+- [Features](https://pawbs.app/features): everything pawbs does, in detail
+- [Search](https://pawbs.app/search): tag autocomplete, the query assistant, saved searches
+- [Pool reader](https://pawbs.app/pools): reading e621 pools and comics in order
+- [Downloads](https://pawbs.app/downloads): saving posts, and whole pools as link lists
+- [Install](https://pawbs.app/install): how to install pawbs on iPhone, iPad, Android, Windows, macOS, Linux and ChromeOS
+- [FAQ](https://pawbs.app/faq): accounts and API keys, privacy, blacklist, favourites, downloads, devices
+- [pawbs for e926](https://pawbs.app/e926): using pawbs with e926, the safe-for-work version of e621
+- [About](https://pawbs.app/about): why pawbs exists and how it works
+- [Privacy](https://pawbs.app/privacy): what stays on the device and what the server sees
+- [Contact](mailto:contact@pawbs.app)

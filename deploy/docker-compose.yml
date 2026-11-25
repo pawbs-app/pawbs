@@ -1,0 +1,20 @@
+# pawbs with `docker compose up -d` (or as a stack in a container manager).
+#
+# The image is built from this repository. To run a published image instead, replace `build: ..` with
+# `image: <registry>/<path>:latest` (follows the default branch) or `:X.Y.Z` (pins a release), and add
+# `pull_policy: always` so each redeploy fetches the newest image (automatic updates: see the `deploy`
+# job in .gitlab-ci.yml).
+#
+# The image already runs nginx as a non-root user. `security_opt: no-new-privileges:true` is left out
+# on purpose: with the snap package of Docker (AppArmor-confined), it makes the container fail at start
+# with "exec /docker-entrypoint.sh: operation not permitted". Add it on a regular Docker install.
+services:
+  pawbs:
+    build: ..
+    container_name: pawbs
+    restart: unless-stopped
+    ports:
+      # host:container; change the left side to use another host port. Behind a reverse proxy or CDN on
+      # the same host, bind it to that proxy only ("127.0.0.1:8080:8080"): the port is plain HTTP, and
+      # reached directly it goes around whatever the proxy enforces.
+      - "8080:8080"

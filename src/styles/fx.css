@@ -1,0 +1,314 @@
+/* Interface effects and HUD decor.
+
+   Motion (Settings › Browsing › Interface effects: on unless html[data-fx='off']; none at all when
+   the system asks for reduced motion). Every duration and delay is multiplied by --fx-speed (1; raise it to
+   slow them down and look at them). The vocabulary:
+   - unfold: a box opens like a HUD window: a bright line grows across its middle, the box opens
+     up and down from it, the line fades, the content rises in (state panels, dialogs, the query
+     assistant, setup boxes);
+   - lock-on: brackets show as a full bright outline that snaps back into the corners (after an
+     unfold; the viewer's frame; a thumbnail under the pointer);
+   - grow: a warning notice writes itself in from the left on an amber flush that settles, its
+     warning sign blinking; a loader stretches out from its middle;
+   - wipes: menus open top down, toasts from their left; a dialog's backdrop dims in;
+   - a new page fades up (PageFx.vue), its title decodes (directives/decode.ts), its head's accent
+     draws in;
+   - zoom: a picture opening grows out of its thumbnail, cross-fading into it inside a tracking
+     frame; closing shrinks it back (services/zoomFx.ts: a view transition).
+   Decor (always): headings trail off into a hairline, page heads start their rule with a short
+   bright accent, thin scrollbars, inverted selection. Colour stays where it means something
+   (ratings, votes, offline): see the components. */
+
+/* The bracket arms and colour animate: registered, so a keyframe can take them from a full outline
+   (arms of half the box meet) back to the box's own corners. */
+@property --bs {
+  syntax: '<length-percentage>';
+  inherits: false;
+  initial-value: 10px;
+}
+@property --bc {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #6f6f6f;
+}
+
+/* ---------- keyframes ---------- */
+
+/* Only the brackets move: the box itself is there (a box fading in shows what is under it). */
+@keyframes fx-lock {
+  from {
+    --bs: 50%;
+    --bc: var(--text);
+  }
+}
+/* A box opening from its middle line (the line itself: fx-unfold-line on its ::after). */
+@keyframes fx-unfold-box {
+  0%,
+  34% {
+    clip-path: inset(calc(50% - 1px) 0 calc(50% - 1px) 0);
+  }
+  100% {
+    clip-path: inset(-1px);
+  }
+}
+@keyframes fx-unfold-line {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  34% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+@keyframes fx-sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes fx-write-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(-1px);
+  }
+}
+@keyframes fx-flush {
+  from {
+    background-color: color-mix(in srgb, var(--flush, var(--warn)) 34%, transparent);
+  }
+}
+@keyframes fx-blink {
+  0%,
+  49% {
+    opacity: 0.2;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes fx-stretch {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fx-wipe-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes fx-dim {
+  from {
+    background-color: transparent;
+  }
+}
+@keyframes fx-page-in {
+  from {
+    opacity: 0.2;
+  }
+}
+@keyframes fx-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+/* the zoom (view transition pseudo-elements, below): a plain cross-fade, no flash */
+@keyframes fx-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fx-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes fx-track {
+  from {
+    outline-color: rgba(255, 255, 255, 0.9);
+    outline-offset: 0;
+  }
+  to {
+    outline-color: transparent;
+    outline-offset: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* unfold, then lock on: state panels (loading, empty, failed), dialogs, the assistant, setup */
+  :root:not([data-fx='off']) :is(.rv-panel, .rv-dialog, .qa-box, .box).rv-brackets {
+    position: relative;
+    animation:
+      fx-unfold-box calc(0.46s * var(--fx-speed, 1)) cubic-bezier(0.3, 0.7, 0.2, 1) backwards,
+      fx-lock calc(0.42s * var(--fx-speed, 1)) calc(0.34s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  :root:not([data-fx='off']) :is(.rv-panel, .rv-dialog, .qa-box, .box).rv-brackets::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    margin-top: -0.5px;
+    background: var(--text);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    animation: fx-unfold-line calc(0.5s * var(--fx-speed, 1)) cubic-bezier(0.3, 0.7, 0.2, 1) backwards;
+  }
+  /* a phone (640px wide or less): a dialog is a bottom sheet, and rises like one */
+  @media (max-width: 640px) {
+    :root:not([data-fx='off']) .rv-dialog.rv-brackets {
+      animation: fx-sheet-rise calc(0.26s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    }
+    :root:not([data-fx='off']) .rv-dialog.rv-brackets::after {
+      animation: none;
+    }
+  }
+  :root:not([data-fx='off']) .rv-panel.rv-brackets > * {
+    animation: fx-rise calc(0.3s * var(--fx-speed, 1)) calc(0.26s * var(--fx-speed, 1)) ease-out backwards;
+  }
+
+  /* a warning writes itself in on an amber flush, its sign blinking twice; brackets lock on */
+  :root:not([data-fx='off']) .rv-notice {
+    animation:
+      fx-write-in calc(0.36s * var(--fx-speed, 1)) cubic-bezier(0.3, 0.7, 0.2, 1) backwards,
+      fx-flush calc(1.2s * var(--fx-speed, 1)) calc(0.2s * var(--fx-speed, 1)) ease-out backwards,
+      fx-lock calc(0.42s * var(--fx-speed, 1)) calc(0.24s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  :root:not([data-fx='off']) .rv-notice > * {
+    animation: fx-rise calc(0.3s * var(--fx-speed, 1)) calc(0.2s * var(--fx-speed, 1)) ease-out backwards;
+  }
+  :root:not([data-fx='off']) .rv-notice > .rv-icon {
+    animation: fx-blink calc(0.2s * var(--fx-speed, 1)) calc(0.36s * var(--fx-speed, 1)) 3 backwards;
+  }
+  /* good news (rv-notice--ok) flushes green and does not blink its sign: nothing is wrong */
+  :root:not([data-fx='off']) .rv-notice--ok > .rv-icon {
+    animation: fx-rise calc(0.3s * var(--fx-speed, 1)) calc(0.2s * var(--fx-speed, 1)) ease-out backwards;
+  }
+
+  /* a loader stretches out from its middle, then its brackets lock on */
+  :root:not([data-fx='off']) .pole.rv-brackets {
+    animation:
+      fx-stretch calc(0.34s * var(--fx-speed, 1)) cubic-bezier(0.3, 0.7, 0.2, 1) backwards,
+      fx-lock calc(0.36s * var(--fx-speed, 1)) calc(0.22s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+
+  /* the viewer's frame locks on once the picture has landed */
+  :root:not([data-fx='off']) .frame.rv-brackets {
+    animation: fx-lock calc(0.42s * var(--fx-speed, 1)) calc(0.3s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  /* a thumbnail under the pointer */
+  :root:not([data-fx='off']) .thumb:hover::after,
+  :root:not([data-fx='off']) .thumb:focus-visible::after {
+    opacity: 1;
+    animation: fx-lock calc(0.24s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* wipes; they hold their clip only while they run (a clip left on cuts a menu's shadow off) */
+  :root:not([data-fx='off']) .dlg-backdrop {
+    animation: fx-dim calc(0.2s * var(--fx-speed, 1)) ease-out backwards;
+  }
+  :root:not([data-fx='off']) :is(.rv-menu.drop, .rv-menu.ctx:not(.is-sheet)) {
+    animation: fx-wipe-down calc(0.16s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  :root:not([data-fx='off']) .rv-toast {
+    animation: fx-write-in calc(0.24s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+
+  /* a new page */
+  :root:not([data-fx='off']) main.fx-page {
+    animation: fx-page-in calc(0.28s * var(--fx-speed, 1)) ease-out backwards;
+  }
+  :root:not([data-fx='off']) .page-head::after {
+    transform-origin: left;
+    animation: fx-grow calc(0.5s * var(--fx-speed, 1)) calc(0.12s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+
+  /* the zoom: started only with the effects on (services/zoomFx.ts) */
+  ::view-transition-group(rv-zoom) {
+    animation-duration: calc(0.4s * var(--fx-speed, 1));
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  ::view-transition-image-pair(rv-zoom) {
+    outline: 1px solid transparent;
+    animation: fx-track calc(0.55s * var(--fx-speed, 1)) ease-out both;
+  }
+  ::view-transition-old(rv-zoom),
+  ::view-transition-new(rv-zoom) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  ::view-transition-old(rv-zoom) {
+    animation: fx-out calc(0.3s * var(--fx-speed, 1)) ease-in both;
+  }
+  ::view-transition-new(rv-zoom) {
+    animation: fx-in calc(0.3s * var(--fx-speed, 1)) ease-out both;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: calc(0.3s * var(--fx-speed, 1));
+  }
+}
+
+/* ---------- decor ---------- */
+
+/* Section headings trail off into a hairline to the end of their line (or to their buttons). */
+:is(.block-head, .block, .rv-section) > .rv-heading {
+  display: flex;
+  align-items: center;
+}
+:is(.block-head, .block, .rv-section) > .rv-heading::before {
+  white-space: pre;
+}
+:is(.block-head, .block, .rv-section) > .rv-heading::after {
+  content: '';
+  flex: 1;
+  min-width: 12px;
+  margin-left: 10px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line-2), transparent 92%);
+}
+
+/* A page head's rule starts with a short bright accent. */
+.page-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 48px;
+  height: 1px;
+  background: var(--text);
+  pointer-events: none;
+}
+
+/* Thin scrollbars in the system's greys (a mouse's: touch screens keep their own overlays). */
+@media (pointer: fine) {
+  html,
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-3) transparent;
+  }
+}
+
+/* Selected text inverts, as everything active does. */
+::selection {
+  background: var(--text);
+  color: var(--bg);
+}

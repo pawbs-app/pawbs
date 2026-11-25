@@ -1,0 +1,262 @@
+# pawbs pipeline
+#   merge requests and other branches → type-check and build the app
+#   default branch                    → image (amd64 + arm64) → smoke test → tags `X.Y.Z` and `latest`
+# Released images are in this project's container registry, $CI_REGISTRY_IMAGE
+# (registry.gitlab.com/<group>/<project>), tagged with their version (package.json) and `latest`. A build
+# waits for its smoke test in $CI_REGISTRY_IMAGE/candidates, tagged with its commit; the build cache is
+# in $CI_REGISTRY_IMAGE/cache. So the image's own list holds only released versions.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - check
+  - build
+  - test
+  - release
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+
+default:
+  interruptible: true
+
+.image-pipeline: &image-pipeline
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# The app's version, from package.json ("1.9.3"); a job fails without one.
+.version: &version
+  - |
+    VERSION=$(sed -n 's/^  "version": "\([0-9][0-9.]*\)".*/\1/p' package.json | head -n 1)
+    echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+
+.docker:
+  image: docker:27
+  services:
+    - docker:27-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+check:
+  stage: check
+  image: node:22-alpine
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+    - when: on_success
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+  script:
+    - npm ci --cache .npm --prefer-offline --no-audit --no-fund
+    - npm run build
+
+# Known vulnerabilities in what ships to browsers (the build tools never reach the image). A warning,
+# not a gate: an advisory published overnight, or the registry not answering, must not block a release.
+audit:
+  stage: check
+  image: node:22-alpine
+  rules: *image-pipeline
+  allow_failure: true
+  script:
+    - npm audit --omit=dev --audit-level=high
+
+build-image:
+  extends: .docker
+  stage: build
+  rules: *image-pipeline
+  script:
+    - *version
+    # With dind over TLS, buildx needs an explicit context to create a builder.
+    - docker context create ci-context
+    - docker buildx create --name ci --driver docker-container --use ci-context
+    - >-
+      docker buildx build
+      --platform linux/amd64,linux/arm64
+      --cache-from type=registry,ref=$CI_REGISTRY_IMAGE/cache:buildx
+      --cache-to type=registry,ref=$CI_REGISTRY_IMAGE/cache:buildx,mode=max,image-manifest=true,oci-mediatypes=true
+      --label org.opencontainers.image.revision=$CI_COMMIT_SHA
+      --label org.opencontainers.image.source=$CI_PROJECT_URL
+      --label org.opencontainers.image.version=$VERSION
+      --tag $CI_REGISTRY_IMAGE/candidates:$CI_COMMIT_SHORT_SHA
+      --push
+      .
+
+# Runs the image just built and checks what a browser depends on.
+smoke-test:
+  stage: test
+  image: alpine:3.20
+  rules: *image-pipeline
+  services:
+    - name: $CI_REGISTRY_IMAGE/candidates:$CI_COMMIT_SHORT_SHA
+      alias: app
+  variables:
+    # The app container's output (nginx and njs errors) goes into this job's log.
+    CI_DEBUG_SERVICES: "true"
+  script:
+    - apk add --no-cache curl jq
+    - |
+      set -e
+      for i in $(seq 1 30); do curl -fsS http://app:8080/healthz && break; sleep 1; done
+      curl -fsS http://app:8080/ | grep -q '<title>pawbs'
+      curl -fsS http://app:8080/ | grep -q '<link rel="canonical" href="https://pawbs.app/"'
+      curl -fsS http://app:8080/robots.txt | grep -q '^Sitemap: https://pawbs.app/sitemap.xml'
+      curl -fsSI http://app:8080/sitemap.xml | grep -qiE '^content-type: (application|text)/xml'
+      curl -fsSI http://app:8080/og-image.png | grep -qi '^content-type: image/png'
+      curl -fsS http://app:8080/.well-known/security.txt | grep -q '^Contact: mailto:contact@pawbs.app'
+      curl -fsSI http://app:8080/favicon.ico | grep -qi '^content-type: image/'
+      curl -fsSI http://app:8080/icons/paw.svg | grep -qi '^cache-control: no-cache'
+      curl -fsS http://app:8080/llms.txt | grep -q '^# pawbs'
+      # The page itself says what pawbs is, for crawlers that do not run JavaScript.
+      curl -fsS http://app:8080/ | grep -q '<h1>pawbs: a fast, private e621'
+      # The static pages (site/pages.mjs) at their clean addresses, listed in the sitemap.
+      for P in features pools downloads search install faq e926 about privacy; do
+        curl -fsS "http://app:8080/$P" | grep -q '<link rel="canonical" href="https://pawbs.app/'"$P"'">'
+        curl -fsS http://app:8080/sitemap.xml | grep -q "<loc>https://pawbs.app/$P</loc>"
+      done
+      # One address per page: a trailing slash goes to it (relative, so the CDN's host and scheme hold).
+      curl -sSI 'http://app:8080/faq/?x=1' > slash.txt
+      cat slash.txt
+      grep -q '^HTTP/1.1 301' slash.txt
+      grep -qi '^location: /faq?x=1' slash.txt
+      curl -fsSI http://app:8080/faq | grep -qi '^content-type: text/html'
+      curl -fsSI http://app:8080/faq | grep -qi '^cache-control:.*no-transform'
+      curl -fsSI http://app:8080/ > headers.txt
+      cat headers.txt
+      grep -qi '^cache-control: no-cache' headers.txt
+      # The page must reach browsers untouched by the CDN (no injected scripts).
+      grep -qi '^cache-control:.*no-transform' headers.txt
+      grep -qi '^referrer-policy: strict-origin-when-cross-origin' headers.txt
+      grep -qi '^content-security-policy:' headers.txt
+      grep -qi '^x-content-type-options: nosniff' headers.txt
+      curl -fsSI http://app:8080/sw.js | grep -qi '^cache-control: no-cache'
+      curl -fsSI http://app:8080/manifest.webmanifest | grep -qi '^content-type: application/manifest+json'
+      ASSET=$(curl -fsS http://app:8080/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1)
+      test -n "$ASSET"
+      curl -fsSI "http://app:8080/$ASSET" | grep -qi '^cache-control: public, max-age=31536000, immutable'
+      curl -fsS -o /dev/null -D br.txt -H 'Accept-Encoding: br, gzip' "http://app:8080/$ASSET"
+      cat br.txt
+      grep -qi '^content-encoding: br' br.txt
+      grep -qi '^vary: accept-encoding' br.txt
+      curl -fsS -o /dev/null -D gz.txt -H 'Accept-Encoding: gzip' "http://app:8080/$ASSET"
+      grep -qi '^content-encoding: gzip' gz.txt
+      curl -fsS -o /dev/null -D id.txt "http://app:8080/$ASSET"
+      if grep -qi '^content-encoding:' id.txt; then echo "A client without compression got a compressed file"; exit 1; fi
+      curl -fsS -H 'Accept-Encoding: br' http://app:8080/ -o index.br
+      test "$(head -c 15 index.br)" != '<!doctype html>'
+      # Unknown addresses: the app (a mistyped link still opens it), but as a 404 for search engines.
+      test "$(curl -sS -o unknown.html -w '%{http_code}' http://app:8080/some/unknown/path)" = 404
+      grep -q '<title>pawbs' unknown.html
+      test "$(curl -sS -o /dev/null -w '%{http_code}' 'http://app:8080/?site=x')" = 200
+      test "$(curl -sS -o /dev/null -w '%{http_code}' http://app:8080/index.html)" = 200
+      # Device transfer relay (deploy/sync.js under njs): each transfer is handed out once.
+      grep -qi '^permissions-policy: camera=(self)' headers.txt
+      R=http://app:8080/sync/v1
+      # The page "Pass the check" opens: HTML untouched by the CDN, with its own script; at /check,
+      # and under the relay for app versions 1.9.17 and before.
+      for C in http://app:8080/check "$R/check"; do
+        curl -fsS -D check.txt "$C" | grep -q 'check.js'
+        grep -qi '^content-type: text/html' check.txt
+        grep -qi '^cache-control:.*no-transform' check.txt
+        curl -fsSI "$C.js" | grep -qi '^content-type: .*javascript'
+      done
+      # api <expected status> <curl args…>: prints the response body; any other status fails the job,
+      # showing what came back (njs errors are in the service log, CI_DEBUG_SERVICES).
+      api() {
+        want=$1; shift
+        st=$(curl -s -o body.txt -w '%{http_code}' "$@")
+        if [ "$st" != "$want" ]; then echo "Relay: expected $want, got $st" >&2; head -c 600 body.txt >&2; echo >&2; exit 1; fi
+        cat body.txt
+      }
+      is() { jq -e "$1" > /dev/null || { echo "Relay: the answer is not $1" >&2; exit 1; }; }
+      api 200 "$R/health" | is '.ok == true and .ttl == 300'
+      curl -fsSI "$R/health" | grep -qi '^cache-control: no-store'
+      S=$(api 201 -X POST -H 'Content-Type: application/json' -d '{"data":"aGVsbG8="}' "$R/slots")
+      ID=$(echo "$S" | jq -r .id)
+      echo "$ID" | grep -Eq '^[A-Za-z0-9_-]{22}$'
+      api 200 "$R/slots/$ID/status" | is '.state == "waiting"'
+      api 200 "$R/slots/$ID" | is '.data == "aGVsbG8="'
+      api 200 "$R/slots/$ID/status" | is '.state == "taken"'
+      api 404 "$R/slots/$ID" > /dev/null
+      # The code salts: this 5-minute window's and the last one's, different, both secret-derived.
+      api 200 "$R/salt" | is '(.cur | type) == "string" and (.prev | type) == "string" and .cur != .prev and .period == 300'
+      # The 8-digit code path: found by its lookup, once; a lookup already in use is refused; a claim
+      # carries this window's and the last window's lookups.
+      L=$(printf '%064d' 0 | tr 0 a)
+      L2=$(printf '%064d' 0 | tr 0 b)
+      BODY="{\"data\":\"aGVsbG8=\",\"code\":{\"lookup\":\"$L\",\"wrapped\":\"d3JhcA==\"}}"
+      api 201 -X POST -H 'Content-Type: application/json' -d "$BODY" "$R/slots" > /dev/null
+      api 409 -X POST -H 'Content-Type: application/json' -d "$BODY" "$R/slots" > /dev/null
+      api 200 -X POST -H 'Content-Type: application/json' -d "{\"lookups\":[\"$L2\",\"$L\"]}" "$R/claim" | is '.data == "aGVsbG8=" and .wrapped == "d3JhcA==" and .lookup == "'"$L"'"'
+      api 404 -X POST -H 'Content-Type: application/json' -d "{\"lookups\":[\"$L\"]}" "$R/claim" > /dev/null
+      # Older clients: a per-transfer salt and a single lookup.
+      api 201 -X POST -H 'Content-Type: application/json' -d "{\"data\":\"aGVsbG8=\",\"code\":{\"lookup\":\"$L2\",\"salt\":\"c2FsdA==\",\"wrapped\":\"d3JhcA==\"}}" "$R/slots" > /dev/null
+      api 200 -X POST -H 'Content-Type: application/json' -d "{\"lookup\":\"$L2\"}" "$R/claim" | is '.salt == "c2FsdA=="'
+      # Only the app itself: no JSON, or a request another site makes the browser send, is refused.
+      api 415 -X POST -H 'Content-Type: text/plain' -d '{"data":"aGVsbG8="}' "$R/slots" > /dev/null
+      api 403 -X POST -H 'Content-Type: application/json' -H 'Sec-Fetch-Site: cross-site' -d '{"data":"aGVsbG8="}' "$R/slots" > /dev/null
+      api 403 -H 'Sec-Fetch-Site: cross-site' "$R/salt" > /dev/null
+      # The sender cancels: only with its owner token.
+      S=$(api 201 -X POST -H 'Content-Type: application/json' -d '{"data":"aGVsbG8="}' "$R/slots")
+      ID=$(echo "$S" | jq -r .id)
+      OWNER=$(echo "$S" | jq -r .owner)
+      api 403 -X DELETE -H 'X-Owner: nope' "$R/slots/$ID" > /dev/null
+      api 204 -X DELETE -H "X-Owner: $OWNER" "$R/slots/$ID" > /dev/null
+      api 200 "$R/slots/$ID/status" | is '.state == "gone"'
+      # A large transfer (6 MB) goes through intact; malformed ones and unknown paths do not.
+      head -c 4500000 /dev/urandom > big.bin
+      { printf '{"data":"'; base64 -w 0 big.bin; printf '"}'; } > big.json
+      S=$(api 201 -X POST -H 'Content-Type: application/json' --data-binary @big.json "$R/slots")
+      ID=$(echo "$S" | jq -r .id)
+      api 200 "$R/slots/$ID" | jq -r .data | base64 -d | cmp - big.bin
+      api 400 -X POST -H 'Content-Type: application/json' -d 'not json' "$R/slots" > /dev/null
+      api 400 -X POST -H 'Content-Type: application/json' -d '{"lookup":"xyz"}' "$R/claim" > /dev/null
+      api 404 "$R/nothing" | is '.error == "unavailable"'
+      # Nothing about the server shows: no redirect to the container's port, neutral error pages, and a
+      # missing asset is not cached for a year.
+      curl -sS -o /dev/null -D dir.txt http://app:8080/assets
+      if grep -qi '^location:' dir.txt; then echo "A folder name answered with a redirect"; cat dir.txt; exit 1; fi
+      curl -sS -o missing.txt -D missing-h.txt http://app:8080/assets/nope.js
+      grep -q '^HTTP/1.1 404' missing-h.txt
+      if grep -qi 'nginx' missing.txt; then echo "An error page names the server"; exit 1; fi
+      if grep -qi 'immutable' missing-h.txt; then echo "A missing asset is cached for a year"; exit 1; fi
+      grep -qi '^cross-origin-opener-policy: same-origin' headers.txt
+      grep -qi "frame-ancestors 'none'" headers.txt
+      echo "Smoke test passed"
+
+# The tested build becomes the release: tagged with its version and `latest`. (A commit that does not
+# change the version moves that version's tag to its newer build.)
+release:
+  extends: .docker
+  stage: release
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - *version
+    - docker buildx imagetools create --tag "$CI_REGISTRY_IMAGE:$VERSION" --tag "$CI_REGISTRY_IMAGE:latest" "$CI_REGISTRY_IMAGE/candidates:$CI_COMMIT_SHORT_SHA"
+    - echo "Released $CI_REGISTRY_IMAGE:$VERSION (and latest) from $CI_COMMIT_SHORT_SHA"
+
+# Redeploys once `latest` points at the new image: POSTs to DEPLOY_WEBHOOK_URL (Settings › CI/CD ›
+# Variables, masked), for example a container manager's stack webhook whose compose has
+# `pull_policy: always`. Without the variable the job is skipped.
+deploy:
+  stage: deploy
+  image: alpine:3.20
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOY_WEBHOOK_URL
+  environment:
+    name: production
+  script:
+    - apk add --no-cache curl
+    - curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors --max-time 120 -X POST "$DEPLOY_WEBHOOK_URL"
+    - echo "Redeploy requested for $CI_COMMIT_SHORT_SHA"

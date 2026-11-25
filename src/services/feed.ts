@@ -1,0 +1,186 @@
+/* A list of posts that grows on demand. Searches sorted by id page with a cursor ("below this id"),
+   which is cheap and has no depth limit; other sorts use page numbers. Feeds are kept for a while
+   so going back to a search shows it at once, where it was. */
+import { ref, shallowRef, watch, type Ref, type ShallowRef } from 'vue'
+import type { Post } from '@/api/types'
+import { searchPosts } from '@/api/endpoints'
+import { hasOrder, tokenize, withDefaultFilter } from '@/query/syntax'
+import { rememberMediaHost } from '@/api/client'
+
+export interface LoadResult {
+  posts: Post[]
+  done?: boolean
+}
+
+export type Loader = (ctx: { page: number; lastId: number | null; signal: AbortSignal; first: boolean }) => Promise<LoadResult>
+
+export interface Feed {
+  key: string
+  title: string
+  posts: ShallowRef<Post[]>
+  loading: Ref<boolean>
+  done: Ref<boolean>
+  error: Ref<string | null>
+  /** When the first page arrived. */
+  loadedAt: Ref<number>
+  loadMore: () => Promise<void>
+  reload: () => Promise<void>
+  /** Add posts in front (new uploads since loading). */
+  prepend: (posts: Post[]) => void
+  abort: () => void
+  /** A list of one's own (favourites, collections, history): posts marked "not interested" stay. */
+  personal?: boolean
+  /** How many posts the whole list holds, when its source says so (a pool's pages): the viewer counts
+      against it rather than against what is loaded so far. */
+  total?: number
+}
+
+export function createFeed(key: string, title: string, loader: Loader): Feed {
+  const posts = shallowRef<Post[]>([])
+  const loading = ref(false)
+  const done = ref(false)
+  const error = ref<string | null>(null)
+  const loadedAt = ref(0)
+  let page = 1
+  let ctrl: AbortController | null = null
+  let current: Promise<void> | null = null
+  /** Bumped by abort(): a load from before it neither writes its result nor ends the next load. */
+  let gen = 0
+  const ids = new Set<number>()
+
+  async function loadMore(): Promise<void> {
+    if (done.value) return
+    if (current) return current
+    loading.value = true
+    error.value = null
+    const my = (ctrl = new AbortController())
+    const g = gen
+    const first = posts.value.length === 0
+    const lastId = posts.value.length ? posts.value[posts.value.length - 1].id : null
+    current = (async () => {
+      try {
+        const r = await loader({ page, lastId, signal: my.signal, first })
+        if (g !== gen) return // aborted (a reload) meanwhile: its result belongs to nothing now
+        const fresh = r.posts.filter((p) => (ids.has(p.id) ? false : (ids.add(p.id), true)))
+        if (fresh.length) {
+          posts.value = [...posts.value, ...fresh]
+          rememberMediaHost(fresh[0].previewUrl ?? fresh[0].fileUrl)
+        }
+        page++
+        if (first) loadedAt.value = Date.now()
+        // A loader that filters (Flash in a pool chunk) may return nothing yet have more: trust `done`.
+        if (r.done ?? r.posts.length === 0) done.value = true
+      } catch (e) {
+        if (g === gen && (e as Error).name !== 'AbortError') error.value = (e as Error).message
+      } finally {
+        if (g === gen) {
+          loading.value = false
+          current = null
+        }
+      }
+    })()
+    return current
+  }
+
+  async function reload() {
+    abort()
+    posts.value = []
+    ids.clear()
+    page = 1
+    done.value = false
+    error.value = null
+    await loadMore()
+  }
+
+  function prepend(list: Post[]) {
+    const fresh = list.filter((p) => (ids.has(p.id) ? false : (ids.add(p.id), true)))
+    if (fresh.length) posts.value = [...fresh, ...posts.value]
+  }
+
+  function abort() {
+    gen++
+    ctrl?.abort()
+    ctrl = null
+    current = null
+    loading.value = false
+  }
+
+  return { key, title, posts, loading, done, error, loadedAt, loadMore, reload, prepend, abort }
+}
+
+const FIRST_PAGE = 40
+const MAX_PAGE_NUMBER = 750
+
+export interface SearchOptions {
+  pageSize: number
+  defaultFilter: string
+  blockFlash: boolean
+}
+
+/** Does the query itself ask for Flash files? Then it wins over the block. */
+function asksForFlash(q: string): boolean {
+  return tokenize(q).some((t) => t.kind === 'meta' && t.name === 'type' && t.value.toLowerCase() === 'swf' && t.prefix !== '-')
+}
+
+/** The query sent to the site: the person's terms, the default filter and the Flash block. */
+export function effectiveQuery(query: string, opts: Pick<SearchOptions, 'defaultFilter' | 'blockFlash'>): string {
+  const full = withDefaultFilter(query, opts.defaultFilter)
+  return opts.blockFlash && !asksForFlash(full) ? withDefaultFilter(full, '-type:swf') : full
+}
+
+/** Lists that cannot be filtered by the site (popular, pools, favourites) drop Flash posts here. */
+export function withoutFlash(posts: Post[], block: boolean): Post[] {
+  return block ? posts.filter((p) => p.kind !== 'flash') : posts
+}
+
+/** A feed for a search query. */
+export function searchFeed(query: string, opts: SearchOptions): Feed {
+  const full = effectiveQuery(query, opts)
+  const order = hasOrder(full)
+  const cursorMode = !order || order === 'id' || order === 'id_desc'
+  return createFeed(`search:${full}`, query, async ({ page, lastId, signal, first }) => {
+    if (cursorMode) {
+      // A small first page paints sooner; later pages are larger to need fewer requests.
+      const limit = first ? Math.min(FIRST_PAGE, opts.pageSize) : Math.max(opts.pageSize, 75)
+      const posts = await searchPosts(full, { limit, page: lastId ? `b${lastId}` : undefined, signal })
+      return { posts, done: posts.length < limit }
+    }
+    const posts = await searchPosts(full, { limit: opts.pageSize, page, signal })
+    return { posts, done: posts.length < opts.pageSize || page >= MAX_PAGE_NUMBER }
+  })
+}
+
+/** A list kept elsewhere (favourites, history, a sorted pool) exposed as a feed that follows it. */
+export function refFeed(key: string, title: string, source: Ref<Post[]>): Feed & { stop: () => void } {
+  const f = createFeed(key, title, async () => ({ posts: [], done: true }))
+  f.done.value = true
+  const stop = watch(source, (v) => (f.posts.value = v), { immediate: true })
+  return { ...f, stop, personal: true }
+}
+
+// ---- cache of recent feeds ----
+const cache = new Map<string, Feed>()
+const CACHE_MAX = 8
+
+export function cachedFeed(key: string, make: () => Feed): Feed {
+  const hit = cache.get(key)
+  if (hit && !hit.error.value) {
+    cache.delete(key)
+    cache.set(key, hit)
+    return hit
+  }
+  const f = make()
+  cache.set(key, f)
+  while (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value
+    if (oldest === undefined) break
+    cache.get(oldest)?.abort()
+    cache.delete(oldest)
+  }
+  return f
+}
+
+export function dropFeedCache() {
+  cache.forEach((f) => f.abort())
+  cache.clear()
+}
