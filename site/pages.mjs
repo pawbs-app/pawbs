@@ -17,6 +17,7 @@ export const faq = [
       ['Is pawbs an alternative front end for e621?', 'Yes. pawbs is a different interface over the same posts, tags, pools and accounts. It hosts and copies nothing: what you do with an account, such as favourites, votes and sets, happens on e621 itself.'],
       ['Is pawbs affiliated with e621?', 'No. pawbs is an independent, unofficial client. It talks to e621 and e926 through their public API, within their rate limits, and says who it is in every request.'],
       ['Is pawbs free? Are there ads?', 'pawbs is free, with no ads, no paid tier and no tracking.'],
+      ['Is pawbs open source?', 'Yes. pawbs is free software under the GNU AGPL-3.0. Its source code is on <a href="https://github.com/pawbs-app/pawbs">GitHub</a>, mirrored from <a href="https://gitlab.com/pawbs.app/pawbs">GitLab</a>, where every release is built and tested. Anyone can read it, check how it handles data, or run their own copy.'],
       ['What is e926?', 'e926 is the safe-for-work version of e621: the same site and the same accounts, showing only posts rated safe. pawbs works with both; see <a href="/e926">pawbs for e926</a>.'],
     ],
   },
@@ -291,7 +292,7 @@ export const pages = [
     nav: 'FAQ',
     title: 'pawbs FAQ: e621 account, API key, blacklist, downloads',
     description: 'Answers about pawbs, the free e621 and e926 viewer: do you need an account, why an API key, privacy, blacklist, downloads, videos, iPhone and Android.',
-    updated: '2026-11-23',
+    updated: '2026-11-25',
     crumb: 'FAQ',
     h1: 'Questions about pawbs',
     lede: 'Accounts, privacy, downloads, devices: the questions people ask about pawbs, answered.',
@@ -336,12 +337,12 @@ export const pages = [
   {
     slug: 'about',
     nav: 'About',
-    title: 'About pawbs, an independent e621 client and front end',
-    description: 'pawbs is an independent, free e621 and e926 client in your browser: an alternative front end made to be fast and private. Why it exists and how it works.',
-    updated: '2026-11-23',
+    title: 'About pawbs, an independent, open-source e621 client',
+    description: 'pawbs is an independent, free and open-source e621 and e926 client in your browser: an alternative front end made to be fast and private. Why it exists and how it works.',
+    updated: '2026-11-25',
     crumb: 'About',
     h1: 'About pawbs',
-    lede: 'pawbs is an independent viewer for e621 and e926, made to be fast, clean and private, on every device.',
+    lede: 'pawbs is an independent, open-source viewer for e621 and e926, made to be fast, clean and private, on every device.',
     body: `
 <h2>Why pawbs</h2>
 <p>Browsing e621 on a phone, or for hours on a computer, should be quick and pleasant. pawbs loads what you are about to see before you get there, keeps your place everywhere, and puts e621’s powerful search language within reach of anyone, with autocomplete and a query assistant. It works the same on a phone, a tablet and a computer. <a href="/features">Everything pawbs does</a></p>
@@ -354,6 +355,9 @@ export const pages = [
   <li>What you keep (favourites, follows, collections, settings) stays in your browser. There are no pawbs accounts.</li>
   <li>The pawbs server only delivers the app and, when you ask for it, relays an end-to-end encrypted transfer between your own devices. <a href="/privacy">Privacy in detail</a></li>
 </ul>
+
+<h2>Open source</h2>
+<p>pawbs is free software under the <a href="https://github.com/pawbs-app/pawbs/blob/main/LICENSE">GNU AGPL-3.0</a>. The source code is on <a href="https://github.com/pawbs-app/pawbs">GitHub</a>, mirrored from <a href="https://gitlab.com/pawbs.app/pawbs">GitLab</a>, where every release is built and tested. Read how it works, check what it does with your data, or run your own copy with Docker.</p>
 
 <h2>Independent</h2>
 <p>pawbs is not affiliated with, endorsed by or connected to e621 or e926. Their names are used only to say what pawbs works with.</p>
@@ -368,7 +372,7 @@ export const pages = [
     nav: 'Privacy',
     title: 'Privacy: pawbs is a private e621 client with no tracking',
     description: 'How pawbs, a private e621 and e926 client, handles your data: no tracking, no ads, no accounts. What stays in your browser and what the server sees.',
-    updated: '2026-11-23',
+    updated: '2026-11-25',
     crumb: 'Privacy',
     h1: 'Privacy',
     lede: 'pawbs has no ads, no analytics, no tracking and no accounts. Here is exactly where your data goes.',
@@ -378,6 +382,7 @@ export const pages = [
   <li>What you keep in pawbs stays in your browser, on your device.</li>
   <li>Searches and pictures go straight to e621 or e926, not through pawbs.</li>
   <li>pawbs sets no cookies of its own and uses no analytics or tracking of any kind.</li>
+  <li>pawbs is open source: anyone can check these statements in <a href="https://github.com/pawbs-app/pawbs">its code</a>.</li>
 </ul>
 
 <h2>On your device</h2>

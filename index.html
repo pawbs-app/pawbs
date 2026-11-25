@@ -59,6 +59,10 @@
               "height": 512
             },
             "email": "contact@pawbs.app",
+            "sameAs": [
+              "https://github.com/pawbs-app",
+              "https://gitlab.com/pawbs.app"
+            ],
             "contactPoint": {
               "@type": "ContactPoint",
               "contactType": "customer support",
@@ -114,8 +118,8 @@
             "alternateName": "pawbs e621 viewer",
             "url": "https://pawbs.app/",
             "image": "https://pawbs.app/og-image.png",
-            "description": "pawbs is a fast, private viewer and browser for e621 and e926 (and other boards with the same API): tag search with autocomplete, favourites, pools, sets and followed tags. A free e621 client that installs as an app, opens offline and keeps everything in the browser.",
-            "keywords": "e621 viewer, e621 browser, e621 client, e621 app, e621 gallery, e926 viewer, e926 browser, e926 client, e621 downloader, e621 pools reader, furry art viewer",
+            "description": "pawbs is a fast, private, open-source viewer and browser for e621 and e926 (and other boards with the same API): tag search with autocomplete, favourites, pools, sets and followed tags. A free e621 client that installs as an app, opens offline and keeps everything in the browser.",
+            "keywords": "e621 viewer, e621 browser, e621 client, e621 app, e621 gallery, e926 viewer, e926 browser, e926 client, e621 downloader, e621 pools reader, furry art viewer, open source e621 client",
             "applicationCategory": "MultimediaApplication",
             "applicationSubCategory": "e621 and e926 viewer",
             "operatingSystem": "Any (web browser): Windows, macOS, Linux, ChromeOS, Android, iOS, iPadOS",
@@ -133,6 +137,7 @@
             "datePublished": "2026-11-21",
             "dateModified": "{{BUILD_DATE}}",
             "isAccessibleForFree": true,
+            "license": "https://www.gnu.org/licenses/agpl-3.0.html",
             "offers": {
               "@type": "Offer",
               "price": "0",
@@ -150,7 +155,8 @@
               "Downloads, one by one or as link lists for a download manager",
               "Installable app that opens offline",
               "Encrypted transfer between devices and backup files",
-              "No tracking, no ads, no account of its own"
+              "No tracking, no ads, no account of its own",
+              "Open source, under the GNU AGPL-3.0"
             ],
             "inLanguage": "en",
             "isPartOf": {
@@ -158,6 +164,23 @@
             },
             "publisher": {
               "@id": "https://pawbs.app/#org"
+            },
+            "author": {
+              "@id": "https://pawbs.app/#org"
+            }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://pawbs.app/#source",
+            "name": "pawbs source code",
+            "codeRepository": "https://github.com/pawbs-app/pawbs",
+            "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+            "programmingLanguage": [
+              "TypeScript",
+              "Vue"
+            ],
+            "targetProduct": {
+              "@id": "https://pawbs.app/#app"
             },
             "author": {
               "@id": "https://pawbs.app/#org"
@@ -221,7 +244,7 @@
     <div id="landing">
         <header>
           <h1>pawbs: a fast, private e621 &amp; e926 viewer</h1>
-          <p class="lede">pawbs is a free e621 client that runs in your browser. Search, browse and save posts from e621 and e926 in a fast, clean interface, with no ads, no tracking and nothing to install from an app store. e621 is a furry art archive for adults; e926 is its safe-for-work version.</p>
+          <p class="lede">pawbs is a free, open-source e621 client that runs in your browser. Search, browse and save posts from e621 and e926 in a fast, clean interface, with no ads, no tracking and nothing to install from an app store. e621 is a furry art archive for adults; e926 is its safe-for-work version.</p>
         </header>
 
         <section>
@@ -258,8 +281,8 @@
           <p>Open pawbs.app in Safari, tap Share, then Add to Home Screen. On Android, choose Install app in the browser menu; on a computer, use the install button in the address bar of Chrome or Edge.</p>
           <h3>What is e926?</h3>
           <p>e926 is the safe-for-work version of e621. pawbs works with both: pick the one you want when you set it up. See <a href="/e926">pawbs for e926</a>.</p>
-          <h3>Is pawbs free?</h3>
-          <p>Yes, pawbs is free to use.</p>
+          <h3>Is pawbs free and open source?</h3>
+          <p>Yes. pawbs is free to use, with no ads, and its code is open: it is on <a href="https://github.com/pawbs-app/pawbs">GitHub</a> under the GNU AGPL-3.0.</p>
           <p><a href="/faq">More questions and answers</a></p>
         </section>
 
@@ -268,7 +291,7 @@
         </nav>
 
         <footer>
-          <p>pawbs is an independent project, not affiliated with e621 or e926. Contact: <a href="mailto:contact@pawbs.app">contact@pawbs.app</a></p>
+          <p>pawbs is an independent, open-source project, not affiliated with e621 or e926. Contact: <a href="mailto:contact@pawbs.app">contact@pawbs.app</a> · Source code: <a href="https://github.com/pawbs-app/pawbs">GitHub</a></p>
         </footer>
     </div>
     <script type="module" src="/src/main.ts"></script>

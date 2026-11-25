@@ -99,6 +99,9 @@ for (const p of pages) {
 // The day the static pages went up; a page added later says its own with `published`.
 const PUBLISHED = '2026-11-23'
 const OG_ALT = 'The pawbs paw mark beside the name: fast, private gallery viewer for image boards.'
+// Where the code is (open source, GNU AGPL-3.0): footer, structured data.
+const REPO = 'https://github.com/pawbs-app/pawbs'
+const LICENSE_URL = 'https://www.gnu.org/licenses/agpl-3.0.html'
 
 function faqHtml() {
   return faq.map((g) => `\n<h2>${g.group}</h2>\n` + g.items.map(([q, a]) => `<h3 class="faq-q">${q}</h3>\n<p>${a}</p>`).join('\n')).join('\n')
@@ -130,7 +133,7 @@ function structuredData(p) {
     // The site, its publisher and the app, named here too: a reference to the home page's data alone
     // is not followed from another page.
     { '@type': 'WebSite', '@id': `${ORIGIN}/#website`, url: `${ORIGIN}/`, name: 'pawbs', inLanguage: 'en', publisher: { '@id': `${ORIGIN}/#org` } },
-    { '@type': 'Organization', '@id': `${ORIGIN}/#org`, name: 'pawbs', url: `${ORIGIN}/`, logo: `${ORIGIN}/icons/paw-512.png`, email: 'contact@pawbs.app' },
+    { '@type': 'Organization', '@id': `${ORIGIN}/#org`, name: 'pawbs', url: `${ORIGIN}/`, logo: `${ORIGIN}/icons/paw-512.png`, email: 'contact@pawbs.app', sameAs: ['https://github.com/pawbs-app', 'https://gitlab.com/pawbs.app'] },
     {
       '@type': 'WebApplication',
       '@id': `${ORIGIN}/#app`,
@@ -138,7 +141,18 @@ function structuredData(p) {
       url: `${ORIGIN}/`,
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Any (web browser): Windows, macOS, Linux, ChromeOS, Android, iOS, iPadOS',
+      license: LICENSE_URL,
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+    },
+    {
+      '@type': 'SoftwareSourceCode',
+      '@id': `${ORIGIN}/#source`,
+      name: 'pawbs source code',
+      codeRepository: REPO,
+      license: LICENSE_URL,
+      programmingLanguage: ['TypeScript', 'Vue'],
+      targetProduct: { '@id': `${ORIGIN}/#app` },
+      author: { '@id': `${ORIGIN}/#org` },
     },
     {
       '@type': 'BreadcrumbList',
@@ -208,7 +222,7 @@ ${structuredData(p)}
   <p class="lede">${p.lede}</p>
 ${body}
   <section class="cta rv-brackets" aria-label="Open pawbs">
-    <p>Free, no ads, no account needed. Pick e621 or e926 and start browsing.</p>
+    <p>Free and open source, no ads, no account needed. Pick e621 or e926 and start browsing.</p>
     <a class="rv-btn rv-btn--primary" href="/">Open pawbs</a>
     ${p.slug === 'install' ? '<a class="rv-btn" href="/features">See the features</a>' : '<a class="rv-btn" href="/install">How to install</a>'}
   </section>
@@ -216,8 +230,8 @@ ${body}
 <footer class="sfoot">
   <div class="in">
     <nav aria-label="All pages"><a href="/">Open pawbs</a>${navLinks('')}</nav>
-    <p>pawbs is an independent project, not affiliated with e621 or e926.</p>
-    <p class="meta"><span>Contact: <a href="mailto:contact@pawbs.app">contact@pawbs.app</a></span><span>Version ${version}</span></p>
+    <p>pawbs is an independent, open-source project (<a href="${REPO}/blob/main/LICENSE">GNU AGPL-3.0</a>), not affiliated with e621 or e926.</p>
+    <p class="meta"><span>Contact: <a href="mailto:contact@pawbs.app">contact@pawbs.app</a></span><span>Source code: <a href="${REPO}">GitHub</a></span><span>Version ${version}</span></p>
   </div>
 </footer>
 </body>

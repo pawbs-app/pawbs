@@ -828,6 +828,8 @@ void DEFAULT_SETTINGS
             <dd>The app opens without a connection; posts need the site.</dd>
             <dt>Contact</dt>
             <dd><a class="link-btn rv-selectable" href="mailto:contact@pawbs.app">contact@pawbs.app</a></dd>
+            <dt>Source</dt>
+            <dd><a class="link-btn rv-selectable" href="https://github.com/pawbs-app/pawbs" target="_blank" rel="noopener">github.com/pawbs-app/pawbs</a></dd>
             <component :is="KeyTest" v-if="KeyTest" />
           </dl>
           <div class="row sp wrap">
@@ -838,7 +840,7 @@ void DEFAULT_SETTINGS
           <div class="row sp wrap">
             <a v-for="l in siteLinks" :key="l.href" class="rv-btn rv-btn--sm" :href="l.href" target="_blank" rel="noopener"><Icon name="external" />{{ l.label }}</a>
           </div>
-          <p class="rv-hint sp">An independent project, not affiliated with e621 or e926. No tracking, no account of its own. It talks only to the sites you add, straight from this browser; transfers between your devices go through this server, encrypted end to end. Typeface: Azeret Mono, SIL Open Font License.</p>
+          <p class="rv-hint sp">An independent, open-source project (GNU AGPL-3.0), not affiliated with e621 or e926. No tracking, no account of its own. It talks only to the sites you add, straight from this browser; transfers between your devices go through this server, encrypted end to end. Typeface: Azeret Mono, SIL Open Font License.</p>
         </section>
       </template>
     </div>

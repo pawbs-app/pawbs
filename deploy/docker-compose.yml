@@ -1,7 +1,7 @@
 # pawbs with `docker compose up -d` (or as a stack in a container manager).
 #
-# The image is built from this repository. To run a published image instead, replace `build: ..` with
-# `image: <registry>/<path>:latest` (follows the default branch) or `:X.Y.Z` (pins a release), and add
+# The image is built from this repository. To run the published image instead, replace `build: ..` with
+# `image: registry.gitlab.com/pawbs.app/pawbs:latest` (follows the default branch) or `:X.Y.Z` (pins a release), and add
 # `pull_policy: always` so each redeploy fetches the newest image (automatic updates: see the `deploy`
 # job in .gitlab-ci.yml).
 #

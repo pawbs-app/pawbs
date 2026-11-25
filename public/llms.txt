@@ -1,6 +1,6 @@
 # pawbs
 
-> pawbs (https://pawbs.app) is a free, fast and private e621 and e926 viewer: an unofficial e621 client that runs in the browser and installs as an app on phones, tablets and computers. It is not affiliated with e621 or e926.
+> pawbs (https://pawbs.app) is a free, open-source, fast and private e621 and e926 viewer: an unofficial e621 client that runs in the browser and installs as an app on phones, tablets and computers. It is not affiliated with e621 or e926.
 
 pawbs talks to e621 and e926 through their public API, straight from the user's browser. It has no accounts of its own, no analytics and no ads. Searches, favourites, followed tags and settings stay in the browser. Signing in is optional and uses an e621 user name and API key, which is only ever sent to e621.
 
@@ -11,6 +11,7 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 - Works with: e621 (adult, 18+), e926 (safe for work), and other boards that offer e621's API
 - Platforms: iPhone, iPad, Android, Windows, macOS, Linux, ChromeOS, any modern browser
 - Account: none needed; optional e621 user name and API key, never the password
+- Source code: open source under the GNU AGPL-3.0, https://github.com/pawbs-app/pawbs (mirror of https://gitlab.com/pawbs.app/pawbs)
 
 ## Features
 
@@ -38,4 +39,5 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 - [pawbs for e926](https://pawbs.app/e926): using pawbs with e926, the safe-for-work version of e621
 - [About](https://pawbs.app/about): why pawbs exists and how it works
 - [Privacy](https://pawbs.app/privacy): what stays on the device and what the server sees
+- [Source code](https://github.com/pawbs-app/pawbs): the code, under the GNU AGPL-3.0
 - [Contact](mailto:contact@pawbs.app)
