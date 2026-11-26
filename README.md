@@ -10,8 +10,8 @@ straight from your browser to e621 or e926, and what you keep stays on your devi
 
 - **Search** with tag autocomplete, a query assistant for e621's search syntax, saved searches and
   tags to refine the results.
-- **Browse** in justified rows, masonry or squares: popular posts, followed tags with new-post counts,
-  pools and comics in reading order.
+- **Browse** in justified rows, masonry or squares: popular posts, followed tags with new-post counts
+  (kept in sync with your e621 account's followed tags if you like), pools and comics in reading order.
 - **View** in a full-screen gallery with keyboard and swipe controls, zoom, video scrubbing, slideshow,
   notes, and details (tags, wiki, comments, pools).
 - **Keep** favourites, collections and sets on the device, with or without an e621 account, and a

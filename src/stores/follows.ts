@@ -8,6 +8,7 @@ import { useTagCache } from './tagcache'
 import { usePoolLibrary } from './poolLibrary'
 import { searchPosts } from '@/api/endpoints'
 import { Priority } from '@/api/client'
+import { countSynced, syncFollows, type SyncReport } from '@/services/followSync'
 
 export interface Follow {
   /** What is followed: a tag, or a whole search (any query, since 1.15.0). */
@@ -24,6 +25,22 @@ export interface Follow {
   newest?: number
   checkedAt: number
   addedAt: number
+  /** Synced with the account (services/followSync): the tag as the account holds it (an alias
+      followed here is stored as the tag it points to). */
+  synced?: string
+  /** The account would not take it (the site's reason): followed here only. */
+  localOnly?: string
+}
+
+/** Sync with the account's followed tags (services/followSync), per data scope. */
+export interface FollowSync {
+  on: boolean
+  /** The account the snapshot is of. */
+  user: string
+  /** The account's tags at the last sync: what changed since, on either side, is found against it. */
+  snapshot: string[]
+  at: number
+  error: string
 }
 
 const CHECK_LIMIT = 100
@@ -38,6 +55,28 @@ export const useFollows = defineStore('follows', () => {
   const list = persistentScoped<Follow[]>(scope, 'follows', () => [])
   const checking = ref(false)
   const progress = ref(0)
+  const sync = persistentScoped<FollowSync>(scope, 'follows:sync', () => ({ on: false, user: '', snapshot: [], at: 0, error: '' }))
+  const syncing = ref(false)
+  /** Sync now; resolves with what moved, or null when it failed (the reason in sync.error). */
+  async function syncNow(retry = false): Promise<SyncReport | null> {
+    if (syncing.value || !sync.value.on || !sites.hasAccount) return null
+    syncing.value = true
+    try {
+      return await syncFollows({ retry })
+    } catch (e) {
+      sync.value.error = (e as Error).message || String(e)
+      return null
+    } finally {
+      syncing.value = false
+    }
+  }
+  /** Sync off: the follows stay as they are; turned on again later, both lists merge (nothing removed).
+      Each tag's link to the account's (an alias and the tag it stands for) is kept: an import or
+      export meanwhile would otherwise follow or send the same tag twice under its two names. */
+  function stopSync() {
+    sync.value = { on: false, user: sync.value.user, snapshot: [], at: 0, error: '' }
+    for (const f of list.value) delete f.localOnly
+  }
 
   /** The follows to show on the site in use: on e926, not the tags of a set shared with e621 that read
       as adult (utils/sfwWords). The list itself keeps them all. */
@@ -67,6 +106,19 @@ export const useFollows = defineStore('follows', () => {
 
   /** A plain tag (not a query with metatags, spaces or wildcards): it has a category and a colour. */
   const isPlainTag = (tag: string) => !/[\s:*]/.test(tag)
+  // Synced: a tag followed or unfollowed here reaches the account a few seconds later.
+  let syncTimer: number | null = null
+  watch(
+    () => (sync.value.on ? list.value.filter((f) => isPlainTag(f.tag)).map((f) => f.tag).sort().join(' ') : null),
+    (now, before) => {
+      if (now == null || before == null || now === before) return
+      if (syncTimer != null) clearTimeout(syncTimer)
+      syncTimer = window.setTimeout(() => {
+        syncTimer = null
+        void syncNow()
+      }, 4000)
+    },
+  )
   // Followed tags show in their category colour: look up the ones not known yet (one batched
   // request, remembered across visits), quietly in the background.
   const tagcache = useTagCache()
@@ -187,10 +239,33 @@ export const useFollows = defineStore('follows', () => {
     if (checking.value || (!list.value.length && !pools.list.length) || !sites.active) return
     checking.value = true
     progress.value = 0
-    const targets = list.value.filter((f) => force || Date.now() - f.checkedAt > AUTO_CHECK_MS / 2)
+    let targets = list.value.filter((f) => force || Date.now() - f.checkedAt > AUTO_CHECK_MS / 2)
     const at = sites.scope
     let done = 0
     try {
+      // Synced with the account: the lists made the same first, then the synced tags counted from
+      // one search (services/followSync); what it does not settle is checked one by one below.
+      if (sync.value.on && sites.hasAccount) {
+        await syncNow()
+        if (sites.scope !== at) return
+        try {
+          const settled = await countSynced(
+            targets.filter((f) => f.synced),
+            CHECK_LIMIT,
+          )
+          if (sites.scope !== at) return
+          for (const [f, c] of settled) {
+            const cur = list.value.find((x) => x.tag === f.tag)
+            if (!cur) continue
+            cur.fresh = c.fresh
+            cur.checkedAt = Date.now()
+            if (c.newest) cur.newest = Math.max(cur.newest ?? 0, c.newest)
+          }
+          targets = targets.filter((f) => !settled.has(f))
+        } catch {
+          /* the search failed: every follow checked on its own below */
+        }
+      }
       for (const f of targets) {
         // The site was switched: these follows (and their counts) belong to the other one.
         if (sites.scope !== at) break
@@ -231,5 +306,29 @@ export const useFollows = defineStore('follows', () => {
     if (stale) void check()
   }
 
-  return { list, shown, checking, progress, totalFresh, find, isFollowed, kindOf, categoryClass, follow, followMany, unfollow, rename, toggle, markSeen, markAllSeen, check, autoCheck, CHECK_LIMIT }
+  return {
+    list,
+    shown,
+    checking,
+    progress,
+    totalFresh,
+    find,
+    isFollowed,
+    kindOf,
+    categoryClass,
+    follow,
+    followMany,
+    unfollow,
+    rename,
+    toggle,
+    markSeen,
+    markAllSeen,
+    check,
+    autoCheck,
+    sync,
+    syncing,
+    syncNow,
+    stopSync,
+    CHECK_LIMIT,
+  }
 })

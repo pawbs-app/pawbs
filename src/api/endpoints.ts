@@ -46,8 +46,9 @@ const OWN_ACCOUNT_KEYS = /(?:^|\s)[-~]?(?:fav|voted|upvote|downvote):(\S+)/gi
 function aboutOwnAccount(tags: string): boolean {
   const me = useSites().active?.username?.toLowerCase()
   if (!me || !useSites().hasAccount) return false
-  // A set may be private to its owner: searches in a set go with the account.
-  if (/(?:^|\s)[-~]?set:\S/i.test(tags)) return true
+  // A set may be private to its owner: searches in a set go with the account. So do the account's
+  // saved searches and tag subscriptions (search:subscriptions), which resolve to nothing without it.
+  if (/(?:^|\s)[-~]?(?:set|search):\S/i.test(tags)) return true
   for (const m of tags.matchAll(OWN_ACCOUNT_KEYS)) if (m[1].toLowerCase() === me) return true
   return false
 }
@@ -220,6 +221,60 @@ export async function getWiki(title: string, signal?: AbortSignal): Promise<Wiki
 export async function getUser(name: string): Promise<UserInfo | null> {
   const body = await req<unknown>(`/users/${encodeURIComponent(name)}.json`, { auth: true, ttl: 0 })
   return normalizeUser(body)
+}
+
+// ---------- tag subscriptions (the account's followed tags, services/followSync) ----------
+
+export interface Subscription {
+  /** The subscription's own id (what removing it takes), and the tag as the site stores it (an alias
+      followed is stored as the tag it points to). */
+  id: number
+  tag: string
+}
+/** The site has no tag subscriptions (an older build, a custom board). */
+export class NoSubscriptionsError extends Error {
+  constructor() {
+    super('This site does not keep followed tags on accounts.')
+    this.name = 'NoSubscriptionsError'
+  }
+}
+/** Every tag the signed-in account subscribes to (500 at most, in one answer). */
+export async function listSubscriptions(): Promise<Subscription[]> {
+  let body: unknown
+  try {
+    body = await req<unknown>('/tag_subscriptions.json', { auth: true, ttl: 0, priority: Priority.Background })
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) throw new NoSubscriptionsError()
+    throw e
+  }
+  if (!Array.isArray(body)) throw new NoSubscriptionsError()
+  const out: Subscription[] = []
+  for (const r of body as Record<string, unknown>[]) if (typeof r?.id === 'number' && typeof r.tag_name === 'string') out.push({ id: r.id, tag: r.tag_name })
+  return out
+}
+/** Subscribe the account to these tags: what was added, and what was not, with the site's reason
+    ("does not exist", "already subscribed", "over the limit of 500"). */
+export async function subscribeTags(names: string[]): Promise<{ added: Subscription[]; skipped: { name: string; reason: string }[] }> {
+  const body = await req<Record<string, unknown>>('/tag_subscriptions.json', { method: 'POST', body: { tag_names: names.join(' ') }, auth: true, ttl: 0 })
+  const added: Subscription[] = []
+  const skipped: { name: string; reason: string }[] = []
+  for (const r of (Array.isArray(body?.added) ? body.added : []) as Record<string, unknown>[]) if (typeof r?.id === 'number' && typeof r.tag_name === 'string') added.push({ id: r.id, tag: r.tag_name })
+  for (const r of (Array.isArray(body?.skipped) ? body.skipped : []) as Record<string, unknown>[]) if (typeof r?.name === 'string') skipped.push({ name: r.name, reason: String(r.reason ?? '') })
+  return { added, skipped }
+}
+/** Remove one subscription (by its id). */
+export async function unsubscribeTag(id: number): Promise<void> {
+  try {
+    await req(`/tag_subscriptions/${id}.json`, { method: 'DELETE', auth: true, ttl: 0 })
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 404)) throw e // already gone
+  }
+}
+/** The tag an alias points to (null: not an alias). */
+export async function aliasTarget(name: string): Promise<string | null> {
+  const body = await req<unknown>('/tag_aliases.json', { params: { 'search[antecedent_name]': name, 'search[status]': 'active' }, ttl: 10 * 60_000, priority: Priority.Background })
+  const r = Array.isArray(body) ? (body[0] as Record<string, unknown> | undefined) : undefined
+  return typeof r?.consequent_name === 'string' ? r.consequent_name : null
 }
 
 /** Replace the signed-in account's blacklist (the site's own setting, one rule per line). */

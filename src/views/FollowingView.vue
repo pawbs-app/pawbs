@@ -17,6 +17,7 @@ import { cachedFeed, effectiveQuery, searchFeed, type Feed } from '@/services/fe
 import { tooManyTerms } from '@/query/syntax'
 import { useInbox } from '@/composables/inbox'
 import InboxRows from '@/components/InboxRows.vue'
+import FollowSyncPanel from '@/components/FollowSyncPanel.vue'
 
 const route = useRoute()
 const follows = useFollows()
@@ -32,7 +33,11 @@ const nav = useViewerNav()
 const streamParts = computed(() => {
   const parts: string[] = []
   let left = 0
+  // Synced with the account: every synced tag in one term (services/followSync), up to 500 of them.
+  const synced = new Set(follows.sync.on && sites.hasAccount ? follows.shown.filter((f) => f.synced) : [])
+  if (synced.size) parts.push('~search:subscriptions')
   for (const f of follows.shown) {
+    if (synced.has(f)) continue
     const search = follows.kindOf(f) === 'search'
     if (search && /(^|\s)-?order:|(^|\s)~|[()]/i.test(f.tag)) continue
     const part = search ? `~( ${f.tag} )` : `~${f.tag}`
@@ -111,6 +116,7 @@ useRefresh(() => {
         <InboxRows v-if="inbox.entries.value.length" :entries="inbox.entries.value" tools slim />
         <p class="rv-hint">Searches, artists and pools can be followed from their own pages (Follow, or a pool's bookmark). Checks run here, in this browser: when pawbs opens or comes back to the screen if the last is half an hour old, and with Check now. What a follow shows counts as seen once you leave its results.</p>
         <p v-if="streamParts.left" class="rv-hint warn">{{ streamParts.left }} {{ streamParts.left === 1 ? 'follow is' : 'follows are' }} not in the stream: one search takes at most 40 terms.</p>
+        <FollowSyncPanel />
       </aside>
       <section class="stream">
         <PostGrid
