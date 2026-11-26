@@ -121,8 +121,9 @@ smoke-test:
       curl -fsS http://app:8080/llms.txt | grep '^# pawbs' > /dev/null
       # The page itself says what pawbs is, for crawlers that do not run JavaScript.
       curl -fsS http://app:8080/ | grep '<h1>pawbs: a fast, private e621' > /dev/null
-      # The static pages (site/pages.mjs) at their clean addresses, listed in the sitemap.
-      for P in features pools downloads search install faq e926 about privacy; do
+      # The static pages (site/pages.mjs, named in site/slugs.json) at their clean addresses, listed in
+      # the sitemap.
+      for P in $(jq -r '.[]' site/slugs.json); do
         curl -fsS "http://app:8080/$P" | grep '<link rel="canonical" href="https://pawbs.app/'"$P"'">' > /dev/null
         curl -fsS http://app:8080/sitemap.xml | grep "<loc>https://pawbs.app/$P</loc>" > /dev/null
       done
