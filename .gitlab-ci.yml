@@ -79,8 +79,8 @@ build-image:
     # With dind over TLS, buildx needs an explicit context to create a builder.
     - docker context create ci-context
     - docker buildx create --name ci --driver docker-container --use ci-context
-    # The serve stage skips the cache, so each release installs Alpine's current nginx and OpenSSL
-    # (a cached `apk add` layer would only be rebuilt when the alpine:3 image itself changes).
+    # The serve stage skips the cache, so each release gets Alpine's current packages, base image
+    # included (a cached `apk` layer would only be rebuilt when the alpine:3 image itself changes).
     - >-
       docker buildx build
       --platform linux/amd64,linux/arm64

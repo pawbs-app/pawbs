@@ -11,12 +11,15 @@ RUN npm run build
 # ---- serve: Alpine's nginx with its Brotli module, as the unprivileged `nginx` user on port 8080 ----
 # (Brotli serves the build's pre-compressed .br copies; the official nginx images lack the module.)
 # CI builds this stage without its layer cache, so every image gets Alpine's current packages.
+# `apk upgrade` covers the packages the alpine:3 image already holds (OpenSSL, zlib, musl…), which
+# `apk add` leaves at the base image's versions.
 FROM alpine:3 AS serve
 LABEL org.opencontainers.image.title="pawbs"       org.opencontainers.image.url="https://pawbs.app" \
       org.opencontainers.image.description="A fast, installable viewer for image boards with a compatible JSON API" \
       org.opencontainers.image.licenses="AGPL-3.0-only AND OFL-1.1"
 # nginx-mod-http-js (njs) runs the device transfer relay, deploy/sync.js.
-RUN apk add --no-cache nginx nginx-mod-http-brotli nginx-mod-http-js \
+RUN apk upgrade --no-cache \
+ && apk add --no-cache nginx nginx-mod-http-brotli nginx-mod-http-js \
  && rm -f /etc/nginx/http.d/*.conf
 COPY deploy/nginx-main.conf /etc/nginx/nginx.conf
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
