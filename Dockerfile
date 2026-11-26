@@ -6,8 +6,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
-# The commit being built (CI passes it), shown in the app's Settings › About.
+# The commit being built, and a beta build's pre-release version ("1.16.16-beta.3"; empty: package.json's
+# version), both passed by CI and shown in the app's Settings › About.
 ARG BUILD_REF=""
+ARG APP_VERSION=""
 RUN npm run build
 
 # ---- serve: Alpine's nginx with its Brotli module, as the unprivileged `nginx` user on port 8080 ----

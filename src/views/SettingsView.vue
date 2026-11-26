@@ -840,7 +840,7 @@ void DEFAULT_SETTINGS
           <h2 class="rv-heading rv-label">pawbs</h2>
           <dl class="rv-dl">
             <dt>Version</dt>
-            <dd class="tabular">{{ APP_VERSION }}<template v-if="BETA"> beta</template></dd>
+            <dd class="tabular">{{ APP_VERSION }}</dd>
             <template v-if="BUILD_REF">
               <dt>Build</dt>
               <dd class="tabular rv-selectable">{{ BUILD_REF }}</dd>

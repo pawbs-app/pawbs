@@ -7,6 +7,10 @@ import pkg from './package.json' with { type: 'json' }
 import siteSlugs from './site/slugs.json' with { type: 'json' }
 import { devSyncRelay } from './deploy/sync-dev'
 
+/* The version the app shows and stores: package.json's, or the pre-release label CI gives a build of
+   the `beta` branch between releases ("1.16.16-beta.3", APP_VERSION). */
+const appVersion = /^\d+\.\d+\.\d+-beta\.\d+$/.test(process.env.APP_VERSION ?? '') ? (process.env.APP_VERSION as string) : pkg.version
+
 /** The production response headers (deploy/headers.conf, used by nginx), so `vite preview` matches. */
 function productionHeaders(): Record<string, string> {
   try {
@@ -39,7 +43,7 @@ function sitePagesPreview(): Plugin {
 export default defineConfig({
   base: './',
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(appVersion),
     // The commit the image was built from (CI passes BUILD_REF), shown in Settings › About; empty in
     // a local build.
     __BUILD_REF__: JSON.stringify(/^[0-9a-f]{7,40}$/.test(process.env.BUILD_REF ?? '') ? process.env.BUILD_REF : ''),
@@ -63,7 +67,7 @@ export default defineConfig({
     {
       name: 'html-version',
       transformIndexHtml: (html: string) =>
-        html.replaceAll('{{APP_VERSION}}', pkg.version).replaceAll('{{BUILD_DATE}}', new Date().toISOString().slice(0, 10)),
+        html.replaceAll('{{APP_VERSION}}', appVersion).replaceAll('{{BUILD_DATE}}', new Date().toISOString().slice(0, 10)),
     },
     // The device transfer relay for local runs (nginx runs deploy/sync.js in production).
     devSyncRelay(),
