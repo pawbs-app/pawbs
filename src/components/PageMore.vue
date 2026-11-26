@@ -8,6 +8,7 @@ import { computed, ref } from 'vue'
 import Sheet from './Sheet.vue'
 import Icon from './Icon.vue'
 import { phone } from '@/composables/phone'
+import { useLayout } from '@/composables/layout'
 import { useSettings, type Layout } from '@/stores/settings'
 
 const props = defineProps<{ title?: string }>()
@@ -44,7 +45,8 @@ function press(r: Row) {
   open.value = false
   r.el.click()
 }
-// A phone held upright sets its own size (PostGrid), like GridTools.
+// A phone held upright has its own layout and size (composables/layout, PostGrid), like GridTools.
+const layout = useLayout()
 const size = computed({
   get: () => (phone.value ? settings.s.thumbSizePhone : settings.s.thumbSize),
   set: (v: number) => (phone.value ? (settings.s.thumbSizePhone = v) : (settings.s.thumbSize = v)),
@@ -70,7 +72,7 @@ const layouts: { value: Layout; label: string; icon: string }[] = [
         <div v-if="rows.length" class="sheet-sep"></div>
         <div class="sheet-label rv-label">Layout</div>
         <div class="layouts" role="radiogroup" aria-label="Layout">
-          <button v-for="l in layouts" :key="l.value" class="lay" :class="{ 'is-on': settings.s.layout === l.value }" type="button" role="radio" :aria-checked="settings.s.layout === l.value" @click="settings.s.layout = l.value">
+          <button v-for="l in layouts" :key="l.value" class="lay" :class="{ 'is-on': layout === l.value }" type="button" role="radio" :aria-checked="layout === l.value" @click="layout = l.value">
             <Icon :name="l.icon" :size="18" /><span>{{ l.label }}</span>
           </button>
         </div>

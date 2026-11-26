@@ -19,12 +19,18 @@ const error = ref<string | null>(null)
 
 /** Counted up by Retry: the post is asked for again. */
 const again = ref(0)
+// Each source on its own: a getter returning a new array counted every route change as a change, so
+// closing the gallery (the address losing its `post`) loaded the post again and reopened it at once.
 watch(
-  () => [route.name, route.params.id, again.value] as const,
+  [() => route.name, () => route.params.id, again],
   async ([name, id]) => {
     if (name !== 'post') return
     const pid = Number(id)
     const at = route.path
+    // The gallery opens by itself only for an address without it (a shared link), and only if nothing
+    // changed while the post loaded: closed meanwhile (a pasted link opens it at once), it stays closed.
+    const openOnLoad = !route.query.post
+    const arrived = route.fullPath
     error.value = null
     try {
       const p = await getPost(pid)
@@ -39,7 +45,7 @@ watch(
       feed.value = f
       gallery.setFeed(f, at)
       await f.loadMore()
-      if (route.path === at && !route.query.post) router.replace({ path: route.path, query: { post: String(pid) } })
+      if (openOnLoad && route.fullPath === arrived) router.replace({ path: route.path, query: { post: String(pid) } })
     } catch (e) {
       if (route.path === at) error.value = (e as Error).message
     }

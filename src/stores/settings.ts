@@ -11,6 +11,8 @@ export type PoolLayout = 'list' | 'large' | 'grid'
 export interface Settings {
   // browsing
   layout: Layout
+  /** The same on a phone held upright (composables/layout): Columns by default. */
+  layoutPhone: Layout
   thumbSize: number
   /** The same on a phone held upright (its own, so a phone's choice leaves the computer's alone). */
   thumbSizePhone: number
@@ -59,6 +61,8 @@ export interface Settings {
   seekStep: number
   wheelAction: WheelAction
   idleDelay: number
+  /** The mouse pointer goes with the controls when they hide (the gallery). */
+  hideCursor: boolean
   /** Slideshow: seconds a picture stays (a video plays to its end). */
   slideshowSeconds: number
   infoPanel: boolean
@@ -76,6 +80,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   layout: 'justified',
+  layoutPhone: 'masonry',
   thumbSize: 220,
   thumbSizePhone: 220,
   gridFit: 'contain',
@@ -107,8 +112,9 @@ export const DEFAULT_SETTINGS: Settings = {
   abLoop: true,
   volume: 0.8,
   seekStep: 5,
-  wheelAction: 'none',
+  wheelAction: 'zoom',
   idleDelay: 2500,
+  hideCursor: true,
   slideshowSeconds: 6,
   infoPanel: false,
   showNotes: true,
@@ -131,6 +137,12 @@ export const useSettings = defineStore('settings', () => {
   if (!readJson<boolean>('zoom-reset-1.9.1', false)) {
     s.value.zoomMode = 'fit'
     writeJson('zoom-reset-1.9.1', true)
+  }
+  // Since 1.18.0 the wheel zooms by default: the old default (nothing) becomes Zoom, once; a choice
+  // made after that stays.
+  if (!readJson<boolean>('wheel-zoom-1.18', false)) {
+    if (s.value.wheelAction === 'none') s.value.wheelAction = 'zoom'
+    writeJson('wheel-zoom-1.18', true)
   }
   function reset() {
     s.value = { ...DEFAULT_SETTINGS }

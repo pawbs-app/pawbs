@@ -1857,7 +1857,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
   <div
     ref="root"
     class="viewer"
-    :class="{ 'is-idle': chromeAway, 'with-panel': panel, 'is-zoomed': scrollable, 'page-zoomed': pageZoomed }"
+    :class="{ 'is-idle': chromeAway, 'hide-cursor': S.hideCursor, 'with-panel': panel, 'is-zoomed': scrollable, 'page-zoomed': pageZoomed }"
     tabindex="-1"
     role="dialog"
     aria-modal="true"
@@ -2261,8 +2261,10 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
 .stage.scrollable:active {
   cursor: grabbing;
 }
-.viewer.is-idle .stage {
-  cursor: none;
+/* The controls hidden: the pointer too (Settings › Gallery), over the picture and its sides alike. */
+.viewer.is-idle.hide-cursor,
+.viewer.is-idle.hide-cursor :deep(*) {
+  cursor: none !important;
 }
 .canvas {
   position: relative;

@@ -23,6 +23,7 @@ import { useSelection, type SelectAction } from '@/stores/selection'
 import { gridAhead } from '@/services/netinfo'
 import { release, want } from '@/services/preloader'
 import { phone } from '@/composables/phone'
+import { useLayout } from '@/composables/layout'
 import { seenMode } from '@/composables/seen'
 import { useHistory } from '@/stores/history'
 
@@ -110,6 +111,8 @@ const narrow = computed(() => width.value > 0 && width.value < 600)
 const seenHow = seenMode()
 const history = useHistory()
 const dimmed = (p: Post) => !props.personal && seenHow.value === 'dim' && history.seenSet.has(p.id)
+// The layout and size: a phone held upright has its own (composables/layout, GridTools).
+const layout = useLayout()
 // A phone held upright has its own size (GridTools), denser or larger than the computer's.
 const size = computed(() => (phone.value ? settings.s.thumbSizePhone : settings.s.thumbSize))
 
@@ -128,7 +131,7 @@ interface Cell {
 
 const justified = computed(() => {
   const W = width.value
-  if (!W || settings.s.layout !== 'justified') return []
+  if (!W || layout.value !== 'justified') return []
   const H = narrow.value ? Math.min(size.value, 150) : size.value
   const rows: { h: number; cells: Cell[]; line?: boolean }[] = []
   let row: { post: Post; ar: number; i: number }[] = []
@@ -164,7 +167,7 @@ const justified = computed(() => {
 /* Masonry columns (two blocks of them when the new posts are parted from the rest by the line). */
 const masonry = computed(() => {
   const W = width.value
-  if (!W || settings.s.layout !== 'masonry') return { blocks: [] as Cell[][][], cw: 0 }
+  if (!W || layout.value !== 'masonry') return { blocks: [] as Cell[][][], cw: 0 }
   const target = narrow.value ? Math.min(size.value, (W - GAP) / 2) : size.value
   const n = Math.max(2, Math.floor((W + GAP) / (target + GAP)))
   const cw = Math.floor((W - GAP * (n - 1)) / n)
@@ -188,7 +191,7 @@ const masonry = computed(() => {
 
 const grid = computed(() => {
   const W = width.value
-  if (!W || settings.s.layout !== 'grid') return { blocks: [] as Cell[][], cell: 0, n: 1 }
+  if (!W || layout.value !== 'grid') return { blocks: [] as Cell[][], cell: 0, n: 1 }
   const target = narrow.value ? Math.min(size.value, (W - 2 * GAP) / 3) : size.value
   const n = Math.max(2, Math.floor((W + GAP) / (target + GAP)))
   const cell = Math.floor((W - GAP * (n - 1)) / n)
@@ -226,7 +229,7 @@ const LINE_H = 40 // the line parting new posts, with its margins
 const spots = computed(() => {
   const out: { post: Post; top: number; bottom: number }[] = []
   let y = 0
-  if (settings.s.layout === 'justified') {
+  if (layout.value === 'justified') {
     for (const row of justified.value) {
       if (row.line) {
         y += LINE_H
@@ -235,7 +238,7 @@ const spots = computed(() => {
       for (const c of row.cells) out.push({ post: c.post, top: y, bottom: y + c.h })
       y += row.h + GAP
     }
-  } else if (settings.s.layout === 'masonry') {
+  } else if (layout.value === 'masonry') {
     masonry.value.blocks.forEach((cols, bi) => {
       if (bi > 0) y += LINE_H
       let tallest = 0
@@ -500,8 +503,8 @@ function open(p: Post) {
 </script>
 
 <template>
-  <div ref="root" class="pgrid" :class="'l-' + settings.s.layout">
-    <template v-if="settings.s.layout === 'justified'">
+  <div ref="root" class="pgrid" :class="'l-' + layout">
+    <template v-if="layout === 'justified'">
       <template v-for="(row, ri) in justified" :key="ri">
       <div v-if="row.line" class="newline" role="separator"><span class="rv-label">{{ newLabel }}</span></div>
       <div v-else class="jrow" :style="{ height: row.h + 'px', containIntrinsicSize: `auto ${row.h}px` }">
@@ -532,7 +535,7 @@ function open(p: Post) {
       </template>
     </template>
 
-    <template v-else-if="settings.s.layout === 'masonry'">
+    <template v-else-if="layout === 'masonry'">
       <template v-for="(cols, bi) in masonry.blocks" :key="bi">
       <div v-if="bi > 0" class="newline" role="separator"><span class="rv-label">{{ newLabel }}</span></div>
       <div class="mcols">

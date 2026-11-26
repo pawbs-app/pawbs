@@ -4,7 +4,9 @@ import Segmented from './Segmented.vue'
 import { computed } from 'vue'
 import { useSettings, type Layout } from '@/stores/settings'
 import { phone } from '@/composables/phone'
+import { useLayout } from '@/composables/layout'
 const settings = useSettings()
+const layout = useLayout()
 // A phone held upright sets its own size, over a range that suits its width (PostGrid).
 const size = computed({
   get: () => (phone.value ? settings.s.thumbSizePhone : settings.s.thumbSize),
@@ -19,7 +21,7 @@ const layouts: { value: Layout; label: string; icon: string; title: string }[] =
 
 <template>
   <div class="gtools">
-    <Segmented v-model="settings.s.layout" :options="layouts" label="Layout" />
+    <Segmented v-model="layout" :options="layouts" label="Layout" />
     <label class="size" title="Thumbnail size">
       <input v-model.number="size" class="rv-slider" type="range" :min="phone ? 90 : 120" :max="phone ? 360 : 420" step="10" aria-label="Thumbnail size" />
       <span class="tabular">{{ size }}</span>

@@ -7,7 +7,8 @@ export function pastedTarget(text: string, siteUrl: string | undefined, bareNumb
   const t = text.trim()
   if (!t || t.length > 2000 || /\s/.test(t)) return null
   const n = /^#?(\d{1,10})$/.exec(t)
-  if (n) return bareNumbers ? `/post/${n[1]}` : null
+  // (With the gallery already open on it: pasted again on its own page, it still opens.)
+  if (n) return bareNumbers ? `/post/${n[1]}?post=${n[1]}` : null
   let url: URL
   try {
     url = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`)
@@ -18,7 +19,7 @@ export function pastedTarget(text: string, siteUrl: string | undefined, bareNumb
   const host = url.hostname.replace(/^www\./, '').toLowerCase()
   if (host !== 'e621.net' && host !== 'e926.net' && host !== own) return null
   const post = /^\/posts\/(\d+)\/?$/.exec(url.pathname)
-  if (post) return `/post/${post[1]}`
+  if (post) return `/post/${post[1]}?post=${post[1]}`
   const pool = /^\/pools\/(\d+)\/?$/.exec(url.pathname)
   if (pool) return `/pools/${pool[1]}`
   if (/^\/posts\/?$/.test(url.pathname)) {

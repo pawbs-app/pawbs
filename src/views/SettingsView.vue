@@ -30,6 +30,7 @@ import { useTagCache } from '@/stores/tagcache'
 import { useUi } from '@/stores/ui'
 import { allKeys, clearAll, removeKey, storageBackend, storageBytes, vaultMeta } from '@/stores/persist'
 import PrivacySettings from '@/components/PrivacySettings.vue'
+import { useLayout } from '@/composables/layout'
 import { probeSite, verifyAccount } from '@/api/endpoints'
 import { APP_VERSION, normalizeSiteUrl } from '@/api/client'
 import { describeConnection } from '@/services/netinfo'
@@ -232,6 +233,9 @@ const gridPreloadModes: { key: PreloadMode; title: string; text: string }[] = [
   { key: 'balanced', title: 'Balanced', text: 'Three screens of thumbnails ahead, results about a page ahead · smooth at a normal pace' },
   { key: 'aggressive', title: 'Aggressive', text: 'Six screens ahead, results about two pages ahead · uninterrupted even when scrolling fast · most data' },
 ]
+
+// The grid's layout: this device's (a phone held upright has its own, composables/layout).
+const layout = useLayout()
 
 // ---------- blacklist ----------
 // A guest: the site's default rules missing from pawbs's blacklist (services/blacklistSync), added on request.
@@ -528,7 +532,7 @@ void DEFAULT_SETTINGS
           <div class="rv-setting">
             <span>Layout</span>
             <Segmented
-              v-model="S.layout"
+              v-model="layout"
               :options="[
                 { value: 'justified', label: 'Rows' },
                 { value: 'masonry', label: 'Columns' },
@@ -540,7 +544,7 @@ void DEFAULT_SETTINGS
             <span>Thumbnail size</span>
             <span class="row"><input v-model.number="S.thumbSize" class="rv-slider w120" type="range" min="120" max="420" step="10" /><span class="val tabular">{{ S.thumbSize }} px</span></span>
           </label>
-          <div class="rv-setting" :class="{ 'is-disabled': S.layout !== 'grid' }">
+          <div class="rv-setting" :class="{ 'is-disabled': layout !== 'grid' }">
             <span>Grid squares show</span>
             <Segmented
               v-model="S.gridFit"
@@ -650,6 +654,10 @@ void DEFAULT_SETTINGS
               <option :value="8000">8 s</option>
               <option :value="600000">Never</option>
             </select>
+          </label>
+          <label class="rv-setting">
+            <span>Hide the mouse pointer with the controls <span class="faint">(everywhere in the gallery, its sides too)</span></span>
+            <input v-model="S.hideCursor" class="rv-switch" type="checkbox" />
           </label>
           <label class="rv-setting">
             <span>Slideshow: each picture stays <span class="faint">(P in the gallery, or its slideshow button; a video plays to its end)</span></span>
