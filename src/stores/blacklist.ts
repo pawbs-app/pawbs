@@ -97,6 +97,14 @@ export interface BlacklistConflict {
   account: string
 }
 
+export interface BlacklistSynced {
+  /** The account ("address|name"). */
+  key: string
+  account: string
+  here: string
+  at: number
+}
+
 export const useBlacklist = defineStore('blacklist', () => {
   const text = persistent<string>('blacklist', '')
   const enabled = persistent<boolean>('blacklist:on', true)
@@ -107,6 +115,11 @@ export const useBlacklist = defineStore('blacklist', () => {
   const conflict = persistent<BlacklistConflict | null>('blacklist:conflict', null)
   /** Accounts already compared once ("address|name"), so the check runs once per account. */
   const compared = persistent<string[]>('blacklist:compared', [])
+  /** The account's blacklist and this one as they were at the last sync with it (services/blacklistSync):
+      what changed since, on either side, is found against them. */
+  const synced = persistent<BlacklistSynced | null>('blacklist:synced', null)
+  /** Kept in step with the account by itself: additions carry over both ways, removals ask. */
+  const auto = persistent<boolean>('blacklist:auto', true)
   const rules = computed(() => compile(text.value))
   // Results per post object, dropped whenever the rules change.
   let memo = new WeakMap<Post, string | null>()
@@ -155,5 +168,5 @@ export const useBlacklist = defineStore('blacklist', () => {
       .join('\n')
   }
 
-  return { text, enabled, rules, match, reveal, addLine, removeLine, revealed, conflict, compared }
+  return { text, enabled, rules, match, reveal, addLine, removeLine, revealed, conflict, compared, synced, auto }
 })

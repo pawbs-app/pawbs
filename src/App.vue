@@ -21,7 +21,7 @@ import { useFollows } from './stores/follows'
 import { useSettings } from './stores/settings'
 import { onStorageQuota, persistNow, storageProblem, vaultMeta } from './stores/persist'
 import { lockNow, refreshVaultOn, startLock } from './services/lock'
-import { compareWithAccount } from './services/blacklistSync'
+import { keepBlacklistInStep } from './services/blacklistSync'
 import { KeyLevel, pushKeyLayer } from './services/keyboard'
 import { APP_VERSION, warmUp } from './api/client'
 import { useInstall } from './composables/install'
@@ -161,12 +161,12 @@ onMounted(() => {
   // Followed tags: checked shortly after start, then whenever the last check is half an hour old
   // (asked every few minutes while the app is shown, and when it comes back or another site is chosen).
   window.setTimeout(() => follows.autoCheck(), 4000)
-  // The signed-in account's blacklist against pawbs's, once per account (services/blacklistSync):
-  // accounts signed in before this existed, and another site's account when it comes into use.
-  window.setTimeout(() => void compareWithAccount(), 6000)
+  // The signed-in account's blacklist and pawbs's kept in step (services/blacklistSync): compared once
+  // per account, then once a day; and another site's account when it comes into use.
+  window.setTimeout(() => void keepBlacklistInStep(), 6000)
   watch(
     () => (sites.active?.username && sites.active.apiKey ? `${sites.active.url}|${sites.active.username}` : ''),
-    (k, old) => k && old !== undefined && window.setTimeout(() => void compareWithAccount(), 1500),
+    (k, old) => k && old !== undefined && window.setTimeout(() => void keepBlacklistInStep(), 1500),
   )
   const recheck = () => document.visibilityState === 'visible' && follows.autoCheck()
   window.setInterval(recheck, 5 * 60_000)

@@ -6,6 +6,13 @@
    Settings asks which to use (components/BlacklistNotice). Settings › Blacklist can pull, push or
    merge at any time (components/BlacklistSync).
 
+   Kept in step afterwards (on by default, Settings › Blacklist): once a day, what changed on each
+   side since the last sync (both lists are remembered then) is looked at. Rules added on one side are
+   added to the other. Rules removed on one side are never removed from the other by this: the
+   difference is pointed out instead (the same notice), and the account's blacklist only ever loses
+   rules through Push. The lists remembered then move on, so a difference already settled is not
+   pointed out again.
+
    Lines are compared as rules: surrounding and repeated spaces, case and order do not matter. */
 import { getUser, setAccountBlacklist } from '@/api/endpoints'
 import { useBlacklist } from '@/stores/blacklist'
@@ -41,6 +48,16 @@ export function mergeBlacklists(here: string, there: string): string {
   return [...linesOf(here), ...onlyThere].join('\n')
 }
 
+/** `a` without the rules also in any of `others` (compared as rules), in `a`'s order. */
+function minus(a: string[], ...others: string[][]): string[] {
+  const out = new Set(others.flat().map(norm))
+  return a.filter((l) => !out.has(norm(l)))
+}
+const within = (a: string[], b: string[]) => {
+  const inB = new Set(b.map(norm))
+  return a.filter((l) => inB.has(norm(l)))
+}
+
 /** The active site's account, or null for a guest. */
 function account() {
   const s = useSites().active
@@ -60,6 +77,66 @@ export async function readAccountBlacklist(): Promise<{ userId: number; text: st
 export async function writeAccountBlacklist(userId: number, text: string): Promise<void> {
   await setAccountBlacklist(userId, text)
   clearConflict()
+}
+
+/** Both lists as they are now, settled: what changes from here on is found against them. */
+export function rememberSynced(accountText: string): void {
+  const s = account()
+  if (!s) return
+  const bl = useBlacklist()
+  bl.synced = { key: accountKey(s), account: accountText, here: bl.text, at: Date.now() }
+}
+
+const DAY = 24 * 60 * 60_000
+/** Keep pawbs's blacklist and the account's in step (see the top of this file): at most once a day
+    unless `force`. Quietly does nothing without an account, offline, or with it turned off. */
+export async function keepBlacklistInStep(opts: { force?: boolean } = {}): Promise<void> {
+  const s = account()
+  const bl = useBlacklist()
+  if (!s || !bl.auto) return
+  const key = accountKey(s)
+  const snap = bl.synced?.key === key ? bl.synced : null
+  if (!snap) {
+    // Never synced with this account yet: compared as at a sign-in (or, already compared before this
+    // existed and nothing left to choose, taken as settled).
+    if (!bl.compared.includes(key)) return compareWithAccount()
+    if (bl.conflict) return
+    try {
+      rememberSynced((await readAccountBlacklist()).text)
+    } catch {
+      /* next time */
+    }
+    return
+  }
+  if (!opts.force && Date.now() - snap.at < DAY) return
+  let acc: { userId: number; text: string }
+  try {
+    acc = await readAccountBlacklist()
+  } catch {
+    return
+  }
+  const A0 = linesOf(snap.account)
+  const H0 = linesOf(snap.here)
+  const A = linesOf(acc.text)
+  const H = linesOf(bl.text)
+  const addedThere = minus(A, A0, H)
+  const addedHere = minus(H, H0, A)
+  const removedThere = within(minus(A0, A), H)
+  const removedHere = within(minus(H0, H), A)
+  let accountText = acc.text
+  try {
+    if (addedHere.length) {
+      accountText = [...A, ...addedHere].join('\n')
+      await writeAccountBlacklist(acc.userId, accountText)
+    }
+  } catch {
+    return // not saved to the account: tried again next time, nothing remembered
+  }
+  if (addedThere.length) bl.text = [...H, ...addedThere].join('\n')
+  if (removedThere.length || removedHere.length) bl.conflict = { site: s.url, siteName: s.name, user: s.username, userId: acc.userId, account: accountText }
+  rememberSynced(accountText)
+  const moved = [addedThere.length && `${addedThere.length} from your ${s.name} account added here`, addedHere.length && `${addedHere.length} added to the account`].filter(Boolean)
+  if (moved.length) useUi().toast(`Blacklist kept in step: ${moved.join(', ')}`, { tone: 'ok', ms: 6000 })
 }
 
 function clearConflict() {
@@ -89,15 +166,23 @@ export async function compareWithAccount(opts: { force?: boolean; known?: { user
   }
   bl.compared = [...bl.compared.filter((k) => k !== key), key]
   const accountRules = linesOf(acc.text)
-  if (!accountRules.length) return clearConflict()
+  if (!accountRules.length) {
+    clearConflict()
+    return rememberSynced(acc.text)
+  }
   if (!linesOf(bl.text).length) {
     bl.text = accountRules.join('\n')
     clearConflict()
+    rememberSynced(acc.text)
     useUi().toast(`Blacklist copied from your ${s.name} account (${accountRules.length} rule${accountRules.length === 1 ? '' : 's'})`, { tone: 'ok', ms: 6000 })
     return
   }
-  if (sameBlacklist(diffBlacklists(bl.text, acc.text))) return clearConflict()
+  if (sameBlacklist(diffBlacklists(bl.text, acc.text))) {
+    clearConflict()
+    return rememberSynced(acc.text)
+  }
   bl.conflict = { site: s.url, siteName: s.name, user: s.username, userId: acc.userId, account: acc.text }
+  rememberSynced(acc.text)
 }
 
 /** Settle a noted difference: use the account's rules, keep pawbs's, or merge both into pawbs. */
@@ -109,6 +194,7 @@ export function resolveConflict(choice: 'account' | 'pawbs' | 'merge'): void {
   if (choice === 'account') bl.text = linesOf(c.account).join('\n')
   else if (choice === 'merge') bl.text = mergeBlacklists(bl.text, c.account)
   bl.conflict = null
+  rememberSynced(c.account)
   const ui = useUi()
   if (choice === 'pawbs') ui.toast('Kept pawbs’s blacklist', { tone: 'ok' })
   else

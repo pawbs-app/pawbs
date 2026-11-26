@@ -8,7 +8,7 @@ import Icon from './Icon.vue'
 import { useBlacklist } from '@/stores/blacklist'
 import { useSites } from '@/stores/sites'
 import { useUi } from '@/stores/ui'
-import { diffBlacklists, linesOf, mergeBlacklists, readAccountBlacklist, sameBlacklist, writeAccountBlacklist, type BlacklistDiff } from '@/services/blacklistSync'
+import { diffBlacklists, linesOf, mergeBlacklists, readAccountBlacklist, rememberSynced, sameBlacklist, writeAccountBlacklist, type BlacklistDiff } from '@/services/blacklistSync'
 
 const blacklist = useBlacklist()
 const sites = useSites()
@@ -62,10 +62,12 @@ async function apply(action: Action) {
   if (action === 'pull') {
     blacklist.text = linesOf(acc.text).join('\n')
     blacklist.conflict = null
+    rememberSynced(acc.text)
     ui.toast('Blacklist pulled from the account', { tone: 'ok', action: { label: 'Undo', run: () => (blacklist.text = before) } })
   } else if (action === 'merge') {
     blacklist.text = mergeBlacklists(blacklist.text, acc.text)
     blacklist.conflict = null
+    rememberSynced(acc.text)
     ui.toast('The account’s rules merged into pawbs’s', { tone: 'ok', action: { label: 'Undo', run: () => (blacklist.text = before) } })
   } else {
     busy.value = 'push'
@@ -73,6 +75,7 @@ async function apply(action: Action) {
       const text = linesOf(blacklist.text).join('\n')
       await writeAccountBlacklist(acc.userId, text)
       account.value = { ...acc, text }
+      rememberSynced(text)
       ui.toast(`Blacklist saved to your ${sites.active?.name ?? ''} account`, { tone: 'ok' })
     } catch (e) {
       error.value = (e as Error).message
@@ -98,6 +101,10 @@ const labels: Record<Action, string> = { pull: 'Pull from the account', push: 'P
       </span>
       <button class="link-btn" type="button" :disabled="!!busy" @click="refresh">Check again</button>
     </div>
+    <label class="rv-setting">
+      <span>Keep in step by itself <span class="faint">(once a day: rules added on either side are added to the other; a rule removed on one side is pointed out, never removed from the other)</span></span>
+      <input v-model="blacklist.auto" class="rv-switch" type="checkbox" />
+    </label>
     <div class="row wrap">
       <button class="rv-btn rv-btn--sm" type="button" :disabled="!!busy" title="The account’s blacklist replaces pawbs’s" @click="start('pull')"><Icon name="download" />{{ busy === 'pull' ? 'Reading…' : labels.pull }}</button>
       <button class="rv-btn rv-btn--sm" type="button" :disabled="!!busy" title="pawbs’s blacklist replaces the account’s" @click="start('push')"><Icon name="arrow-up" />{{ busy === 'push' ? 'Saving…' : labels.push }}</button>
