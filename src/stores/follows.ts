@@ -30,15 +30,18 @@ export interface Follow {
   synced?: string
   /** The account would not take it (the site's reason): followed here only. */
   localOnly?: string
+  /** Synced, then gone from the account: kept here, not added back, until the person chooses. */
+  removedOnAccount?: boolean
 }
 
 /** Sync with the account's followed tags (services/followSync), per data scope. */
 export interface FollowSync {
   on: boolean
-  /** The account the snapshot is of. */
+  /** The account last synced with. */
   user: string
-  /** The account's tags at the last sync: what changed since, on either side, is found against it. */
-  snapshot: string[]
+  /** Tags (as the account holds them) unfollowed here by the person since the last sync: removed
+      from the account at the next one. Nothing else is ever removed there. */
+  pending?: string[]
   at: number
   error: string
 }
@@ -55,7 +58,7 @@ export const useFollows = defineStore('follows', () => {
   const list = persistentScoped<Follow[]>(scope, 'follows', () => [])
   const checking = ref(false)
   const progress = ref(0)
-  const sync = persistentScoped<FollowSync>(scope, 'follows:sync', () => ({ on: false, user: '', snapshot: [], at: 0, error: '' }))
+  const sync = persistentScoped<FollowSync>(scope, 'follows:sync', () => ({ on: false, user: '', pending: [], at: 0, error: '' }))
   /** Accounts ("address|name") whose first sign-in here has turned sync on (services/followSync):
       later sign-ins keep whatever was chosen since. */
   const signedInBefore = persistent<string[]>('follows:signed-in', [])
@@ -77,8 +80,11 @@ export const useFollows = defineStore('follows', () => {
       Each tag's link to the account's (an alias and the tag it stands for) is kept: an import or
       export meanwhile would otherwise follow or send the same tag twice under its two names. */
   function stopSync() {
-    sync.value = { on: false, user: sync.value.user, snapshot: [], at: 0, error: '' }
-    for (const f of list.value) delete f.localOnly
+    sync.value = { on: false, user: sync.value.user, pending: [], at: 0, error: '' }
+    for (const f of list.value) {
+      delete f.localOnly
+      delete f.removedOnAccount
+    }
   }
 
   /** The follows to show on the site in use: on e926, not the tags of a set shared with e621 that read
@@ -173,6 +179,11 @@ export const useFollows = defineStore('follows', () => {
     }
     if (!added.length) return 0
     list.value = [...added, ...list.value]
+    // Followed again before the sync removed it from the account: it stays there.
+    if (sync.value.pending?.length) {
+      const again = new Set(added.map((f) => f.tag))
+      sync.value.pending = sync.value.pending.filter((t) => !again.has(t))
+    }
     const names = new Set(added.map((f) => f.tag))
     siteNewest()
       .then((id) => {
@@ -190,9 +201,15 @@ export const useFollows = defineStore('follows', () => {
     followMany([q], name)
   }
 
+  /** Unfollow, by the person: with sync on, a tag that is on the account is removed from it too (at
+      the next sync, services/followSync). The only way a tag ever leaves the account. */
   function unfollow(tag: string) {
     const k = normalize(tag)
-    list.value = list.value.filter((f) => f.tag !== k)
+    const f = list.value.find((x) => x.tag === k)
+    list.value = list.value.filter((x) => x.tag !== k)
+    if (sync.value.on && f?.synced && !f.removedOnAccount && !list.value.some((x) => (x.synced ?? x.tag) === f.synced)) {
+      sync.value.pending = [...new Set([...(sync.value.pending ?? []), f.synced])]
+    }
   }
 
   function rename(tag: string, name: string) {
@@ -253,7 +270,7 @@ export const useFollows = defineStore('follows', () => {
         if (sites.scope !== at) return
         try {
           const settled = await countSynced(
-            targets.filter((f) => f.synced),
+            targets.filter((f) => f.synced && !f.removedOnAccount),
             CHECK_LIMIT,
           )
           if (sites.scope !== at) return

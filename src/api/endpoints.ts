@@ -270,6 +270,10 @@ export async function unsubscribeTag(id: number): Promise<void> {
     if (!(e instanceof ApiError && e.status === 404)) throw e // already gone
   }
 }
+/** Mark everything the account follows as seen on the site (its own new-posts counts). */
+export async function markSubscriptionsSeen(): Promise<void> {
+  await req('/saved_searches/mark_all_seen.json', { method: 'POST', auth: true, ttl: 0 })
+}
 /** The tag an alias points to (null: not an alias). */
 export async function aliasTarget(name: string): Promise<string | null> {
   const body = await req<unknown>('/tag_aliases.json', { params: { 'search[antecedent_name]': name, 'search[status]': 'active' }, ttl: 10 * 60_000, priority: Priority.Background })

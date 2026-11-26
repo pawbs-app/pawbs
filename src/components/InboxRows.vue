@@ -8,10 +8,12 @@ import { KIND_LABEL, freshLabel, useInbox, type InboxEntry } from '@/composables
 import { useQueryMenus } from '@/composables/queryMenus'
 import { openMenu } from '@/services/contextMenu'
 import { relativeTime } from '@/utils/format'
+import { useFollows } from '@/stores/follows'
 
 defineProps<{ entries: InboxEntry[]; tools?: boolean; cols?: boolean; slim?: boolean }>()
 const menus = useQueryMenus()
 const inbox = useInbox()
+const follows = useFollows()
 </script>
 
 <template>
@@ -22,6 +24,10 @@ const inbox = useInbox()
         <span class="kind">{{ KIND_LABEL[e.kind] }}</span>
         <span class="what">
           <span class="ellipsis" :class="e.cls">{{ e.label }}</span>
+          <!-- Synced with the account (services/followSync): on it too, kept here only, or gone from it. -->
+          <span v-if="tools && follows.sync.on && e.follow?.removedOnAccount" class="acct warn" title="No longer on your account (see above)">not on account</span>
+          <span v-else-if="tools && follows.sync.on && e.follow?.localOnly" class="acct warn" :title="`Followed here only: the account would not take it (${e.follow.localOnly})`">here only</span>
+          <span v-else-if="tools && follows.sync.on && e.follow?.synced" class="acct" title="Also followed on your account"><Icon name="user" :size="10" /></span>
           <span v-if="e.sub" class="q ellipsis">{{ e.sub }}</span>
         </span>
         <span v-if="e.fresh" class="fresh tabular">{{ slim ? `${e.fresh}${e.capped ? '+' : ''} new` : freshLabel(e) }}</span>
@@ -39,6 +45,19 @@ const inbox = useInbox()
 a.main {
   color: inherit;
   text-decoration: none;
+}
+/* Synced with the account: a small mark after the name. */
+.acct {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--text-3);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+}
+.acct.warn {
+  color: var(--warn);
 }
 /* The kind, small and faint, in a column of its own so the names line up. */
 .kind {

@@ -15,7 +15,7 @@ const ui = useUi()
 const busy = ref<'' | 'import' | 'export'>('')
 const unsupported = ref(false)
 
-const synced = computed(() => follows.list.filter((f) => f.synced).length)
+const synced = computed(() => follows.list.filter((f) => f.synced && !f.removedOnAccount).length)
 const refused = computed(() => follows.list.filter((f) => f.localOnly))
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`
 
@@ -38,7 +38,7 @@ function told(r: SyncReport | null, first = false) {
   const moved = [
     r.pulled && `${plural(r.pulled, 'tag')} followed from the account`,
     r.pushed && `${plural(r.pushed, 'tag')} added to it`,
-    r.dropped && `${plural(r.dropped, 'tag')} unfollowed (removed on the account)`,
+    r.dropped && `${plural(r.dropped, 'tag')} no longer on the account (kept here: see above)`,
     r.removed && `${plural(r.removed, 'tag')} removed from it`,
     r.refused && `${plural(r.refused, 'tag')} kept here only`,
   ].filter(Boolean)
@@ -82,7 +82,8 @@ async function once(what: 'import' | 'export') {
     <template v-else-if="follows.sync.on">
       <p class="rv-hint">
         <span class="rv-dot" :class="follows.sync.error ? 'rv-dot--warn' : 'rv-dot--ok'"></span>
-        Followed tags in sync with the account’s ({{ plural(synced, 'tag') }}<template v-if="ago">, {{ follows.syncing ? 'syncing…' : ago }}</template>). Searches and pools stay here.
+        Followed tags in sync with the account’s ({{ plural(synced, 'tag') }}<template v-if="ago">, {{ follows.syncing ? 'syncing…' : ago }}</template>). Syncing only adds; a tag you
+        unfollow here leaves the account too. Searches and pools stay here.
       </p>
       <p v-if="follows.sync.error" class="rv-hint warn">{{ follows.sync.error }}</p>
       <p v-if="refused.length" class="rv-hint" :title="refused.map((f) => `${f.tag}: ${f.localOnly}`).join('\n')">
@@ -94,7 +95,7 @@ async function once(what: 'import' | 'export') {
       </div>
     </template>
     <template v-else>
-      <p class="rv-hint">The account follows tags too (on the site: up to 500). Keep them the same as pawbs’s, both ways: a tag followed or unfollowed on either side follows on the other. The first sync only adds. Searches and pools stay here.</p>
+      <p class="rv-hint">The account follows tags too (on the site: up to 500). Keep them the same as pawbs’s, both ways: a tag followed on either side is followed on the other. Syncing never removes anything by itself; a tag you unfollow here leaves the account too. Searches and pools stay here.</p>
       <div class="row wrap">
         <button class="rv-btn rv-btn--sm rv-btn--primary" type="button" :disabled="follows.syncing || !!busy" @click="start"><Icon name="retry" />{{ follows.syncing ? 'Syncing…' : 'Sync with the account' }}</button>
       </div>

@@ -2,13 +2,18 @@
    tags only, 500 at most, the same list on e621 and e926).
 
    Sync (opt-in, stores/follows: `sync`): pawbs's plain-tag follows and the account's subscriptions
-   kept the same both ways. What changed on each side is found against the account's list as it was at
-   the last sync (the snapshot): a tag on the account and not in the snapshot was added there, one in
-   the snapshot and gone from the account was removed there, and the same for pawbs's side. The first
-   sync (no snapshot) merges both lists and removes nothing. An alias followed here is stored by the
-   site as the tag it points to: the follow keeps that link (`synced`), or every sync would add it
-   again. A tag the account does not take (it does not exist yet, the 500 limit) stays a follow here
-   only (`localOnly`), and is offered again only when asked (Sync now).
+   kept the same both ways, by adding only. Syncing never removes a follow on either side by itself:
+   - a tag on the account and not followed here is followed here; a tag followed here and not on the
+     account is added to it;
+   - a tag unfollowed here by the person (stores/follows: unfollow) is removed from the account at
+     the next sync: the only removal there is, and only of that tag;
+   - a synced tag gone from the account (removed on the site, or a list that came back short) is
+     neither unfollowed here nor added back: it is marked (`removedOnAccount`) and Following asks
+     what to do. It clears on its own if the tag comes back.
+   An alias followed here is stored by the site as the tag it points to: the follow keeps that link
+   (`synced`), or every sync would add it again. A tag the account does not take (it does not exist
+   yet, the 500 limit) stays a follow here only (`localOnly`), and is offered again only when asked
+   (Sync now).
 
    Searches, pools and what has been seen stay pawbs's own (per device).
 
@@ -29,10 +34,11 @@ export const isPlainTag = (tag: string) => !/[\s:*]/.test(tag)
 const onAccount = (f: Follow) => f.synced ?? f.tag
 
 export interface SyncReport {
-  /** Followed here from the account, and unfollowed here because the account dropped them. */
+  /** Followed here from the account. */
   pulled: number
+  /** Synced tags no longer on the account: marked, kept (Following asks). */
   dropped: number
-  /** Added to the account, and removed from it. */
+  /** Added to the account, and removed from it (unfollowed here by the person). */
   pushed: number
   removed: number
   /** Kept here only: the account would not take them. */
@@ -95,45 +101,77 @@ export async function syncFollows(opts: { retry?: boolean } = {}): Promise<SyncR
   const st = follows.sync
   // Another account than the last sync's: its list starts from scratch (merged, nothing removed).
   if (st.user && st.user.toLowerCase() !== site.username.toLowerCase()) {
-    st.snapshot = []
-    for (const f of follows.list) delete f.synced
+    st.pending = []
+    for (const f of follows.list) {
+      delete f.synced
+      delete f.removedOnAccount
+    }
   }
   const list: Subscription[] = await listSubscriptions()
   const remote = new Map(list.map((s) => [s.tag, s.id]))
-  const before = new Set(st.snapshot)
-  let plain = follows.list.filter((f) => isPlainTag(f.tag))
+  const plain = follows.list.filter((f) => isPlainTag(f.tag))
+  const followed = () => new Set(follows.list.filter((f) => isPlainTag(f.tag)).map(onAccount))
 
-  // Removed on the account since the last sync: unfollowed here.
-  const dropTags = plain.filter((f) => f.synced && before.has(f.synced) && !remote.has(f.synced)).map((f) => f.tag)
-  for (const t of dropTags) follows.unfollow(t)
-  plain = follows.list.filter((f) => isPlainTag(f.tag))
-  // Tags on both sides already: linked.
-  for (const f of plain) if (!f.synced && remote.has(f.tag)) f.synced = f.tag
-  // Followed here and not on the account (new here, or never synced): added to it. First, so that an
-  // alias followed here is linked to the tag the account holds before the account's tags are read
-  // as new ones (it would be followed twice, under both names).
-  if (opts.retry) for (const f of plain) delete f.localOnly
-  const toPush = plain.filter((f) => !remote.has(onAccount(f)) && !(f.synced && before.has(f.synced)) && !f.localOnly)
-  const { pushed, refused } = toPush.length ? await pushFollows(toPush, remote) : { pushed: 0, refused: 0 }
-  const here = new Map(plain.map((f) => [onAccount(f), f]))
-  // Added on the account since the last sync: followed here.
-  const pullTags = [...remote.keys()].filter((t) => !here.has(t) && !before.has(t))
-  followFromAccount(pullTags)
-  // Unfollowed here since the last sync: removed from the account.
-  const toRemove = [...before].filter((t) => remote.has(t) && !here.has(t))
+  // 1. Unfollowed here by the person: removed from the account (the only removal there is), unless
+  //    followed again since. One at a time; what is left after a failure waits for the next sync.
   let removed = 0
-  for (const t of toRemove) {
+  const pending = [...(st.pending ?? [])]
+  while (pending.length) {
+    const t = pending[0]
     const id = remote.get(t)
-    if (id == null) continue
-    await unsubscribeTag(id)
-    remote.delete(t)
-    removed++
+    if (id != null && !followed().has(t)) {
+      await unsubscribeTag(id)
+      remote.delete(t)
+      removed++
+    }
+    pending.shift()
+    st.pending = [...pending]
   }
-  st.snapshot = [...remote.keys()]
+  // 2. Tags on both sides already: linked. A synced tag gone from the account: marked, kept, and
+  //    asked about (Following); back on the account, unmarked.
+  let dropped = 0
+  for (const f of plain) {
+    if (!f.synced && remote.has(f.tag)) f.synced = f.tag
+    if (f.synced && !remote.has(f.synced)) {
+      if (!f.removedOnAccount) dropped++
+      f.removedOnAccount = true
+    } else if (f.removedOnAccount) delete f.removedOnAccount
+  }
+  // 3. Followed here and not on the account (new here, or never synced): added to it. Before the
+  //    account's tags are read, so that an alias followed here is linked to the tag the account holds
+  //    first (it would otherwise be followed twice, under both names).
+  if (opts.retry) for (const f of plain) delete f.localOnly
+  const toPush = plain.filter((f) => !remote.has(onAccount(f)) && !f.removedOnAccount && !f.localOnly)
+  const { pushed, refused } = toPush.length ? await pushFollows(toPush, remote) : { pushed: 0, refused: 0 }
+  // 4. On the account and not followed here: followed here.
+  const here = followed()
+  const pullTags = [...remote.keys()].filter((t) => !here.has(t))
+  followFromAccount(pullTags)
   st.user = site.username
   st.at = Date.now()
   st.error = ''
-  return { pulled: pullTags.length, dropped: dropTags.length, pushed, removed, refused, total: remote.size }
+  return { pulled: pullTags.length, dropped, pushed, removed, refused, total: remote.size }
+}
+
+/** Synced tags no longer on the account (marked by a sync), at the person's choice: added back to it. */
+export async function restoreToAccount(): Promise<number> {
+  const follows = useFollows()
+  const fs = follows.list.filter((f) => f.removedOnAccount)
+  for (const f of fs) delete f.removedOnAccount
+  if (!fs.length) return 0
+  const remote = new Map((await listSubscriptions()).map((s) => [s.tag, s.id]))
+  const { pushed } = await pushFollows(
+    fs.filter((f) => !remote.has(onAccount(f))),
+    remote,
+  )
+  return pushed
+}
+/** Synced tags no longer on the account, at the person's choice: unfollowed here too. */
+export function unfollowDropped(): number {
+  const follows = useFollows()
+  const tags = follows.list.filter((f) => f.removedOnAccount).map((f) => f.tag)
+  for (const t of tags) follows.unfollow(t)
+  return tags.length
 }
 
 /**

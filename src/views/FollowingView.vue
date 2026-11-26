@@ -18,6 +18,8 @@ import { tooManyTerms } from '@/query/syntax'
 import { useInbox } from '@/composables/inbox'
 import InboxRows from '@/components/InboxRows.vue'
 import FollowSyncPanel from '@/components/FollowSyncPanel.vue'
+import FollowsDroppedNotice from '@/components/FollowsDroppedNotice.vue'
+import { markSubscriptionsSeen } from '@/api/endpoints'
 
 const route = useRoute()
 const follows = useFollows()
@@ -34,7 +36,7 @@ const streamParts = computed(() => {
   const parts: string[] = []
   let left = 0
   // Synced with the account: every synced tag in one term (services/followSync), up to 500 of them.
-  const synced = new Set(follows.sync.on && sites.hasAccount ? follows.shown.filter((f) => f.synced) : [])
+  const synced = new Set(follows.sync.on && sites.hasAccount ? follows.shown.filter((f) => f.synced && !f.removedOnAccount) : [])
   if (synced.size) parts.push('~search:subscriptions')
   for (const f of follows.shown) {
     if (synced.has(f)) continue
@@ -86,6 +88,8 @@ function onAdd(tags: string[]) {
 }
 function markAll() {
   inbox.markAllSeen(feed.value?.posts.value[0]?.id)
+  // Synced: the account's followed tags marked seen on the site too, so its own counts agree.
+  if (follows.sync.on && sites.hasAccount) void markSubscriptionsSeen().catch(() => {})
 }
 // Pull down at the top: the stream again, and the counts checked (in the background: one request a tag).
 useRefresh(() => {
@@ -109,6 +113,7 @@ useRefresh(() => {
 
     <div class="layout">
       <aside class="list">
+        <FollowsDroppedNotice />
         <div class="rv-field">
           <span class="rv-label">Follow a tag</span>
           <TagChips v-model:tags="adding" placeholder="Type a tag, Enter" label="Follow a tag" :commit-on-blur="false" @update:tags="onAdd" />
