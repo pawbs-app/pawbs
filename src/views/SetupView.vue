@@ -6,7 +6,7 @@ import PawMark from '@/components/PawMark.vue'
 import { probeSite, verifyAccount } from '@/api/endpoints'
 import { normalizeSiteUrl } from '@/api/client'
 import { isSfwSite, SFW_HOST, siteNameFromUrl, useSites } from '@/stores/sites'
-import { compareWithAccount } from '@/services/blacklistSync'
+import { applyGuestDefault, compareWithAccount } from '@/services/blacklistSync'
 import { syncOnSignIn } from '@/services/followSync'
 import type { UserInfo } from '@/api/types'
 import { checkRelay } from '@/services/transfer'
@@ -183,6 +183,8 @@ async function connect(): Promise<boolean> {
     if (account) void compareWithAccount({ force: true, known: { userId: account.id, text: account.blacklistedTags ?? '' } })
     // Its followed tags too: synced from its first sign-in here (services/followSync).
     if (account) void syncOnSignIn()
+    // A guest: the site's own default blacklist, as its pages apply it to visitors without an account.
+    else void applyGuestDefault(u)
     steps.value[i].state = 'done'
     await openOut(boxEl.value)
     void router.replace('/')

@@ -7,6 +7,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '../Icon.vue'
 import InfoPanel from './InfoPanel.vue'
+import PoolNav from './PoolNav.vue'
 import LoadingPole from '../LoadingPole.vue'
 import type { Note, Post, VideoSource } from '@/api/types'
 import { getNotes, getPost } from '@/api/endpoints'
@@ -827,6 +828,16 @@ function startSlideshow() {
     else if (v.paused) void v.play().catch(() => {})
   }
 }
+/* In the background (another app or tab, a locked phone): a playing video pauses, and a running
+   slideshow with it. Nothing starts again by itself on the way back. */
+function pauseWhenHidden() {
+  if (document.visibilityState !== 'hidden') return
+  if (slideshow.value && !slidePaused.value) toggleSlidePause()
+  const v = video.value
+  if (v && !v.paused) v.pause()
+}
+onMounted(() => document.addEventListener('visibilitychange', pauseWhenHidden))
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', pauseWhenHidden))
 function stopSlideshow() {
   slideshow.value = false
   slidePaused.value = false
@@ -1985,10 +1996,11 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
       </div>
 
       <template v-if="!scrollable && list.length > 1 && !touchInput">
-        <button class="zone prev" type="button" data-press="off" title="Previous (←)" :disabled="index <= 0" @pointerdown="onZoneDown" @click="!touchInput && go(-1)">
+        <!-- No title: a tooltip came up whenever the pointer rested on a side of the picture. -->
+        <button class="zone prev" type="button" data-press="off" aria-label="Previous (←)" :disabled="index <= 0" @pointerdown="onZoneDown" @click="!touchInput && go(-1)">
           <Icon name="chevron-left" :size="28" />
         </button>
-        <button class="zone next" type="button" data-press="off" title="Next (→)" @pointerdown="onZoneDown" @click="!touchInput && go(1)"><Icon name="chevron-right" :size="28" /></button>
+        <button class="zone next" type="button" data-press="off" aria-label="Next (→)" @pointerdown="onZoneDown" @click="!touchInput && go(1)"><Icon name="chevron-right" :size="28" /></button>
       </template>
 
       <div class="rv-hud" :class="{ 'is-idle': chromeAway }">
@@ -2012,6 +2024,8 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
           >
             {{ zoom === 'width' ? 'Width' : '1:1' }}<Icon name="close" :size="10" />
           </button>
+          <!-- A page of a pool, opened from another list: its pool's previous and next pages (PoolNav). -->
+          <PoolNav v-if="post.pools.length" :post="post" :in-pool="route.name === 'pool' ? Number(route.params.id) : null" @navigate="navigateTo" />
         </div>
         <div v-if="SHOW_READOUTS" class="tr">
           <span v-if="post" class="tabular">Score {{ post.score.total }} // Fav {{ post.favCount }}</span>
@@ -2437,6 +2451,10 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
 }
 .zone:disabled {
   opacity: 0 !important;
+}
+/* The pointer at rest: the arrow goes with the rest of the controls, hovered or not. */
+.viewer.is-idle .zone:hover:not(:focus-visible) {
+  opacity: 0;
 }
 /* Touch screens step by swiping: invisible side buttons would only swallow the swipes. */
 @media (hover: none), (pointer: coarse) {

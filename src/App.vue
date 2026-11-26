@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useHistory } from './stores/history'
+import { listKey } from './composables/seen'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import TitleBar from './components/TitleBar.vue'
 import SelectionBar from '@/components/SelectionBar.vue'
@@ -22,7 +24,8 @@ import { useSettings } from './stores/settings'
 import { onStorageQuota, persistNow, storageProblem, vaultMeta } from './stores/persist'
 import { lockNow, refreshVaultOn, startLock } from './services/lock'
 import { keepBlacklistInStep } from './services/blacklistSync'
-import { KeyLevel, pushKeyLayer } from './services/keyboard'
+import { isTyping, KeyLevel, pushKeyLayer } from './services/keyboard'
+import { pastedTarget } from './utils/pasted'
 import { APP_VERSION, warmUp } from './api/client'
 import { useInstall } from './composables/install'
 import { useInstallPrompt } from './composables/installPrompt'
@@ -34,6 +37,11 @@ import TabBar from './components/TabBar.vue'
 import { checkOwnServer, onCheckPassed } from './services/held'
 
 const route = useRoute()
+// Seen posts (composables/seen): another page or query is a new list; the gallery opening over one is not.
+const seenHistory = useHistory()
+useRouter().afterEach((to, from) => {
+  if (listKey(to) !== listKey(from)) seenHistory.markListStart()
+})
 const ui = useUi()
 const sites = useSites()
 const follows = useFollows()
@@ -130,6 +138,18 @@ function submitAssistant(q: string) {
 // Locking (encryption on: Settings › Privacy) and the cover in the app switcher (services/lock).
 refreshVaultOn()
 startLock(() => ({ idle: settings.s.lockIdle, hidden: settings.s.lockHidden, cover: settings.s.coverHidden }))
+
+// Paste to open (utils/pasted): a post's number or link, a pool's or a search's link, pasted anywhere
+// but in a field, opens it.
+const appRouter = useRouter()
+function onPaste(e: ClipboardEvent) {
+  if (gated.value || isTyping(e.target)) return
+  const to = pastedTarget(e.clipboardData?.getData('text') ?? '', sites.active?.url)
+  if (!to) return
+  e.preventDefault()
+  void appRouter.push(to)
+}
+onMounted(() => document.addEventListener('paste', onPaste))
 
 // App-wide keys sit at the bottom of the key layers.
 onMounted(() => {

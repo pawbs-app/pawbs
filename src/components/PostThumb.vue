@@ -23,6 +23,8 @@ const props = defineProps<{
   /** Posts are being picked on this page: a click picks instead of opening. */
   selecting?: boolean
   selected?: boolean
+  /** Opened in the gallery before (Settings › Browsing: dim seen posts): shown faded. */
+  seen?: boolean
 }>()
 /** settled: the picture has loaded, or failed for good (PostGrid waits for the screen to settle). */
 const emit = defineEmits<{ open: []; reveal: []; select: [how: 'toggle' | 'range']; settled: [] }>()
@@ -150,7 +152,7 @@ onBeforeUnmount(stopScrub)
 <template>
   <a
     class="thumb"
-    :class="{ 'is-masked': !!blacklisted, 'is-loaded': loaded, 'is-instant': instant, 'is-saved': saved, 'is-selecting': selecting, 'is-selected': selected, 'is-scrubbing': !!scrub }"
+    :class="{ 'is-seen': seen, 'is-masked': !!blacklisted, 'is-loaded': loaded, 'is-instant': instant, 'is-saved': saved, 'is-selecting': selecting, 'is-selected': selected, 'is-scrubbing': !!scrub }"
     :href="href"
     :style="{ width: w + 'px', height: h + 'px' }"
     :data-id="post.id"
@@ -415,9 +417,20 @@ onBeforeUnmount(stopScrub)
 .is-selected {
   box-shadow: inset 0 0 0 2px var(--text);
 }
-@media (pointer: coarse) {
+/* Seen before (Settings › Browsing): faded, back to full on hover or keyboard focus. */
+.thumb.is-seen img {
+  opacity: 0.32;
+  transition: opacity 0.15s;
+}
+.thumb.is-seen:hover img,
+.thumb.is-seen:focus-visible img {
+  opacity: 1;
+}
+/* A touch screen has no hover: the score and favourites stay shown (when Settings › Browsing asks
+   for them). */
+@media (hover: none) {
   .stats {
-    display: none;
+    opacity: 1;
   }
 }
 @media (hover: none), (pointer: coarse) {

@@ -12,6 +12,8 @@ export interface Settings {
   // browsing
   layout: Layout
   thumbSize: number
+  /** The same on a phone held upright (its own, so a phone's choice leaves the computer's alone). */
+  thumbSizePhone: number
   gridFit: 'contain' | 'cover'
   pageSize: number
   blacklistMode: 'hide' | 'mask'
@@ -23,6 +25,11 @@ export interface Settings {
   fx: boolean
   /** Home shows the tags searched most today and the ones rising. */
   homeTrends: boolean
+  /** Posts already opened in the gallery, in searches, Following, Popular and similar pictures:
+      shown as the others, dimmed, or left out (stores/history: seen). */
+  seenPosts: 'show' | 'dim' | 'hide'
+  /** Private session: nothing is added to the history, the seen posts or the recent searches. */
+  pauseHistory: boolean
   /** The installed app's icon shows how many new posts the followed tags have (where supported). */
   appBadge: boolean
   /** With encryption on: locks after this many minutes without use (0: never). */
@@ -70,6 +77,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   layout: 'justified',
   thumbSize: 220,
+  thumbSizePhone: 220,
   gridFit: 'contain',
   pageSize: 75,
   blacklistMode: 'hide',
@@ -78,6 +86,8 @@ export const DEFAULT_SETTINGS: Settings = {
   hoverScrub: true,
   fx: true,
   homeTrends: true,
+  seenPosts: 'show',
+  pauseHistory: false,
   appBadge: true,
   lockIdle: 15,
   lockHidden: 5,

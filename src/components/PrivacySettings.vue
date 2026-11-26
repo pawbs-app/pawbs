@@ -369,6 +369,14 @@ function switchVerify(to: Flow['verifyWith']) {
   </section>
 
   <section class="block">
+    <h2 class="rv-heading rv-label">Private session</h2>
+    <label class="rv-setting">
+      <span>Private session <span class="faint">(nothing added to the history, the posts seen or the recent searches until turned off)</span></span>
+      <input v-model="S.pauseHistory" class="rv-switch" type="checkbox" />
+    </label>
+  </section>
+
+  <section class="block">
     <h2 class="rv-heading rv-label">In the background</h2>
     <label class="rv-setting">
       <span>Hide pawbs in the app switcher <span class="faint">(its content is covered while pawbs is in the background; the system decides when it takes its preview, so this does its best)</span></span>

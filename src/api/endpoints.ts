@@ -54,12 +54,33 @@ function aboutOwnAccount(tags: string): boolean {
 }
 
 export async function searchPosts(tags: string, p: PageRequest = {}): Promise<Post[]> {
-  const body = await req<unknown>('/posts.json', {
+  const opts: RequestOptions = {
     params: { tags: tags.trim(), limit: Math.min(p.limit ?? 75, MAX_LIMIT), page: p.page },
     signal: p.signal,
     priority: p.priority ?? Priority.User,
     ttl: p.ttl ?? 30_000,
     auth: aboutOwnAccount(tags) || undefined,
+  }
+  const posts = normalizePostList(await req<unknown>('/posts.json', opts), site().url)
+  // Signed in, but the page went without the account (Settings › Sites: the account with every request
+  // off): posts the site withholds from guests came without their files, and would be left out. The
+  // same page again with the account, as the site shows it to that account.
+  const sent = opts.auth ?? useSettings().s.sendAccountAlways
+  if (!sent && useSites().hasAccount && posts.some((x) => !x.fileUrl && !x.deleted)) {
+    return normalizePostList(await req<unknown>('/posts.json', { ...opts, auth: true }), site().url)
+  }
+  return posts
+}
+
+/** The signed-in account's favourites, in the order they were favourited (newest first), by page
+    number. A `fav:name` search lists them by post instead. */
+export async function getFavorites(p: PageRequest = {}): Promise<Post[]> {
+  const body = await req<unknown>('/favorites.json', {
+    params: { limit: Math.min(p.limit ?? 75, MAX_LIMIT), page: p.page },
+    signal: p.signal,
+    priority: p.priority ?? Priority.User,
+    ttl: p.ttl ?? 30_000,
+    auth: true,
   })
   return normalizePostList(body, site().url)
 }
@@ -451,6 +472,14 @@ export async function probeSite(url: string): Promise<{ ms: number; format: 'cur
   }
   const format = first && typeof first === 'object' && 'files' in (first as object) ? 'current' : 'legacy'
   return { ms, format, sample: list[0] ?? null }
+}
+
+/** The blacklist a site applies to visitors without an account (`/users/me.json` asked without one;
+    the site's own pages carry the same list), or null when it gives none. */
+export async function guestBlacklist(url: string): Promise<string | null> {
+  const body = await apiRequest<unknown>({ url }, '/users/me.json', { ttl: 0, priority: Priority.Background })
+  const t = (body as { blacklisted_tags?: unknown } | null)?.blacklisted_tags
+  return typeof t === 'string' ? t : null
 }
 
 export async function verifyAccount(url: string, username: string, apiKey: string): Promise<UserInfo | null> {

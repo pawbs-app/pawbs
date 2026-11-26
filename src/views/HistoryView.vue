@@ -11,9 +11,9 @@ import { useHistory } from '@/stores/history'
 import { useSearches } from '@/stores/searches'
 import { useGallery } from '@/stores/gallery'
 import { useUi } from '@/stores/ui'
+import { useSettings } from '@/stores/settings'
 import { useViewerNav } from '@/composables/viewerNav'
 import { refFeed, withoutFlash } from '@/services/feed'
-import { useSettings } from '@/stores/settings'
 import { relativeTime } from '@/utils/format'
 import type { Post } from '@/api/types'
 import { openMenu, type MenuEntry } from '@/services/contextMenu'
@@ -54,6 +54,8 @@ function clearViewed() {
     <div class="page-head">
       <h1 v-decode="'// History'"></h1>
       <span class="readout"><b>{{ history.posts.length }}</b> viewed // <b>{{ searches.recent.length }}</b> searches</span>
+      <!-- Private session (Settings › Privacy): said where its effect would be missed. -->
+      <RouterLink v-if="settings.s.pauseHistory" class="readout private" to="/settings/privacy" title="Nothing is added to the history while it is on">Private session on</RouterLink>
       <span class="grow"></span>
       <button class="rv-btn rv-btn--sm" type="button" :disabled="!history.items.length" @click="clearViewed"><Icon name="trash" />Clear viewed</button>
       <button class="rv-btn rv-btn--sm" type="button" :disabled="!searches.recent.length" @click="searches.clearRecent()"><Icon name="trash" />Clear searches</button>
@@ -91,6 +93,10 @@ function clearViewed() {
 </template>
 
 <style scoped>
+.private {
+  color: var(--warn);
+  text-decoration: none;
+}
 .searches {
   display: flex;
   flex-wrap: wrap;

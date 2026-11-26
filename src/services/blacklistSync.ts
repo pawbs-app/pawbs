@@ -14,10 +14,52 @@
    pointed out again.
 
    Lines are compared as rules: surrounding and repeated spaces, case and order do not matter. */
-import { getUser, setAccountBlacklist } from '@/api/endpoints'
+import { getUser, guestBlacklist, setAccountBlacklist } from '@/api/endpoints'
 import { useBlacklist } from '@/stores/blacklist'
 import { useSites } from '@/stores/sites'
 import { useUi } from '@/stores/ui'
+
+/** e621's default blacklist for visitors without an account (e926's is the same), as the site gave it
+    on 2026-11-26: for when the site cannot be asked. */
+const E621_GUEST_BLACKLIST = [
+  '# Violence',
+  'gore',
+  'snuff',
+  'rape',
+  '# ABDL',
+  'young -rating:s',
+  'diaper -rating:s',
+  '# Fetish',
+  'feces',
+  'urine',
+  'fart_fetish',
+  'realistic_feral rating:e',
+  '# Controversial',
+  'politics',
+].join('\n')
+const isE6 = (url: string) => /^https:\/\/(?:www\.)?e(?:621|926)\.net$/i.test(url.replace(/\/+$/, ''))
+
+/** The blacklist the site gives visitors without an account (the same as on its own pages); e621's
+    and e926's copy here when the site cannot be asked; null for a site that gives none. */
+export async function siteGuestBlacklist(url: string): Promise<string | null> {
+  try {
+    const t = await guestBlacklist(url)
+    if (t != null) return t
+  } catch {
+    /* below */
+  }
+  return isE6(url) ? E621_GUEST_BLACKLIST : null
+}
+/** A guest starts with the site's own default blacklist, as the site's pages would apply it (only
+    when pawbs's is still empty: nothing of the person's is replaced). */
+export async function applyGuestDefault(url: string): Promise<void> {
+  const bl = useBlacklist()
+  if (linesOf(bl.text).length) return
+  const t = await siteGuestBlacklist(url)
+  if (!t || linesOf(bl.text).length) return
+  bl.text = t
+  useUi().toast('The site’s default blacklist is on, as on its own pages: Settings › Blacklist to change it', { ms: 7000 })
+}
 
 /** The rules of a blacklist, one per non-empty line. */
 export function linesOf(text: string): string[] {

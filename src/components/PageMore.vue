@@ -4,7 +4,7 @@
    read from the head when the sheet opens, so every page keeps its buttons where they are and adds
    only this; a row presses the button it stands for. A button that should stay in sight on a phone
    carries data-keep. */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Sheet from './Sheet.vue'
 import Icon from './Icon.vue'
 import { phone } from '@/composables/phone'
@@ -44,6 +44,11 @@ function press(r: Row) {
   open.value = false
   r.el.click()
 }
+// A phone held upright sets its own size (PostGrid), like GridTools.
+const size = computed({
+  get: () => (phone.value ? settings.s.thumbSizePhone : settings.s.thumbSize),
+  set: (v: number) => (phone.value ? (settings.s.thumbSizePhone = v) : (settings.s.thumbSize = v)),
+})
 const layouts: { value: Layout; label: string; icon: string }[] = [
   { value: 'justified', label: 'Rows', icon: 'rows' },
   { value: 'masonry', label: 'Columns', icon: 'columns' },
@@ -71,8 +76,8 @@ const layouts: { value: Layout; label: string; icon: string }[] = [
         </div>
         <label class="size">
           <span class="rv-label">Size</span>
-          <input v-model.number="settings.s.thumbSize" class="rv-slider" type="range" min="120" max="420" step="10" aria-label="Thumbnail size" />
-          <span class="tabular">{{ settings.s.thumbSize }}</span>
+          <input v-model.number="size" class="rv-slider" type="range" :min="phone ? 90 : 120" :max="phone ? 360 : 420" step="10" aria-label="Thumbnail size" />
+          <span class="tabular">{{ size }}</span>
         </label>
       </template>
     </Sheet>

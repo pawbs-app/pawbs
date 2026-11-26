@@ -5,8 +5,12 @@ import { parseRange, tokenize, type Token } from '@/query/syntax'
 import type { Post } from '@/api/types'
 
 /* One rule per line, in the search language: every plain term must match, no "-" term may match,
-   and at least one "~" term must match. rating:, type:, score:, favcount:, width:, height:, id:
-   are understood; tags take "*" wildcards. */
+   and at least one "~" term must match. Tags take "*" wildcards. The metatags are the site's
+   blacklist's own (its help page, e621:blacklist): id, status, rating, type, width, height,
+   filesize, score, favcount, fav:me, uploader, user, userid, username, pool and tagcount, with
+   numbers as a value, a comparison (>, <, >=, <=) or a range (a..b). Any other term is read as the
+   tag it spells (which no post carries), as the site does: it can make a rule narrower, never wider
+   (dropping it would hide every post matching the rest of the line). */
 
 interface Rule {
   line: string
@@ -22,7 +26,21 @@ function numTest(v: string): (n: number) => boolean {
   return (n) => n >= min && n <= max
 }
 
-function predicate(t: Token): ((p: Post, tags: Set<string>) => boolean) | null {
+/** filesize:500kb, filesize:>1mb, filesize:1mb..5mb: the sizes in bytes. */
+const bytes = (v: string) => v.replace(/(\d+(?:\.\d+)?)(kb|mb)/g, (_m, n: string, u: string) => String(Math.round(Number(n) * (u === 'kb' ? 1024 : 1024 * 1024))))
+/** uploader: and user: take a name, or !id. */
+function byUploader(v: string): (p: Post) => boolean {
+  const id = /^!(\d+)$/.exec(v)
+  return id ? (p) => p.uploaderId === Number(id[1]) : (p) => (p.uploaderName ?? '').toLowerCase() === v
+}
+
+/** Metatags of the blacklist that searches do not have: the tokenizer (query/syntax) reads them as
+    tags, so they are taken apart here. */
+const BLACKLIST_ONLY = /^(uploader|userid|username|filesize|tagcount|status|pool|fav|user):(.+)$/
+
+function predicate(token: Token): ((p: Post, tags: Set<string>) => boolean) | null {
+  const own = token.kind === 'tag' && !token.wildcard ? BLACKLIST_ONLY.exec(token.name) : null
+  const t: Token = own ? { ...token, kind: 'meta', name: own[1], value: own[2] } : token
   if (t.kind === 'tag') {
     if (t.wildcard) {
       const re = new RegExp('^' + t.name.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$')
@@ -60,11 +78,38 @@ function predicate(t: Token): ((p: Post, tags: Set<string>) => boolean) | null {
         const f = numTest(v)
         return (p) => f(p.id)
       }
+      case 'status':
+        if (v === 'flagged') return (p) => p.flagged
+        if (v === 'pending') return (p) => p.pending
+        if (v === 'deleted') return (p) => p.deleted
+        break
+      case 'filesize': {
+        const f = numTest(bytes(v))
+        return (p) => f(p.size)
+      }
+      case 'tagcount': {
+        const f = numTest(v)
+        return (p) => f(p.tags.length)
+      }
+      case 'fav':
+        if (v === 'me') return (p) => p.isFavorited
+        break
+      case 'uploader':
       case 'user':
+        return byUploader(v)
+      case 'username':
         return (p) => (p.uploaderName ?? '').toLowerCase() === v
-      default:
-        return null
+      case 'userid': {
+        const f = numTest(v)
+        return (p) => p.uploaderId != null && f(p.uploaderId)
+      }
+      case 'pool':
+        if (/^\d+$/.test(v)) return (p) => p.pools.includes(Number(v))
+        break
     }
+    // Not one the blacklist knows: the tag it spells, as the site reads it (see the top).
+    const literal = `${t.name}:${v}`
+    return (_p, tags) => tags.has(literal)
   }
   return null
 }

@@ -14,6 +14,8 @@ import { useFollows } from '@/stores/follows'
 import { useSites } from '@/stores/sites'
 import { formatCount } from '@/utils/format'
 import { isEscape } from '@/services/keyboard'
+import { useRouter } from 'vue-router'
+import { pastedTarget } from '@/utils/pasted'
 import { useClickOutside } from '@/composables/dom'
 import { Priority } from '@/api/client'
 
@@ -341,6 +343,16 @@ defineExpose({
     input.value?.select()
   },
 })
+
+// A pasted link to a post, a pool or a search on the site opens it (utils/pasted); other text pastes as usual.
+const router = useRouter()
+function onPaste(e: ClipboardEvent) {
+  const to = pastedTarget(e.clipboardData?.getData('text') ?? '', useSites().active?.url, false)
+  if (!to) return
+  e.preventDefault()
+  input.value?.blur()
+  void router.push(to)
+}
 </script>
 
 <template>
@@ -367,6 +379,7 @@ defineExpose({
       :aria-expanded="open"
       :aria-controls="open ? listId : undefined"
       :aria-activedescendant="open && active >= 0 && items[active] ? `${listId}-${active}` : undefined"
+      @paste="onPaste"
       @keydown="onKey"
       @keyup="syncScroll"
       @scroll="syncScroll"

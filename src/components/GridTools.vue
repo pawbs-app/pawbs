@@ -1,8 +1,15 @@
 <script setup lang="ts">
 /* Layout and size controls shown at the right of a grid page's header. */
 import Segmented from './Segmented.vue'
+import { computed } from 'vue'
 import { useSettings, type Layout } from '@/stores/settings'
+import { phone } from '@/composables/phone'
 const settings = useSettings()
+// A phone held upright sets its own size, over a range that suits its width (PostGrid).
+const size = computed({
+  get: () => (phone.value ? settings.s.thumbSizePhone : settings.s.thumbSize),
+  set: (v: number) => (phone.value ? (settings.s.thumbSizePhone = v) : (settings.s.thumbSize = v)),
+})
 const layouts: { value: Layout; label: string; icon: string; title: string }[] = [
   { value: 'justified', label: 'Rows', icon: 'rows', title: 'Rows: every picture keeps its shape' },
   { value: 'masonry', label: 'Columns', icon: 'columns', title: 'Columns: stacked by height' },
@@ -14,8 +21,8 @@ const layouts: { value: Layout; label: string; icon: string; title: string }[] =
   <div class="gtools">
     <Segmented v-model="settings.s.layout" :options="layouts" label="Layout" />
     <label class="size" title="Thumbnail size">
-      <input v-model.number="settings.s.thumbSize" class="rv-slider" type="range" min="120" max="420" step="10" aria-label="Thumbnail size" />
-      <span class="tabular">{{ settings.s.thumbSize }}</span>
+      <input v-model.number="size" class="rv-slider" type="range" :min="phone ? 90 : 120" :max="phone ? 360 : 420" step="10" aria-label="Thumbnail size" />
+      <span class="tabular">{{ size }}</span>
     </label>
   </div>
 </template>
@@ -40,7 +47,10 @@ const layouts: { value: Layout; label: string; icon: string; title: string }[] =
   width: 26px;
 }
 @media (max-width: 640px) {
-  .size {
+  .size .rv-slider {
+    width: 72px;
+  }
+  .size span {
     display: none;
   }
 }

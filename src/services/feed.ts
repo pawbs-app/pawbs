@@ -3,7 +3,8 @@
    so going back to a search shows it at once, where it was. */
 import { ref, shallowRef, watch, type Ref, type ShallowRef } from 'vue'
 import type { Post } from '@/api/types'
-import { searchPosts } from '@/api/endpoints'
+import { getFavorites, searchPosts } from '@/api/endpoints'
+import { useSites } from '@/stores/sites'
 import { hasOrder, tokenize, withDefaultFilter } from '@/query/syntax'
 import { Priority, rememberMediaHost } from '@/api/client'
 
@@ -150,6 +151,17 @@ export function withoutFlash(posts: Post[], block: boolean): Post[] {
 
 /** A feed for a search query. */
 export function searchFeed(query: string, opts: SearchOptions): Feed {
+  // One's own favourites alone (the title bar's Favourites when signed in): in the order favourited,
+  // as the site lists them, rather than a fav:name search's order by post.
+  const me = useSites().hasAccount ? useSites().active?.username?.toLowerCase() : ''
+  if (me && query.trim().toLowerCase() === `fav:${me}`) {
+    return createFeed(`favorites:${me}`, query, async ({ page, signal, priority }) => {
+      // (Numbered pages of one size, the first one too: with a smaller first page, the next page
+      // number would skip some.)
+      const posts = await getFavorites({ limit: opts.pageSize, page, signal, priority })
+      return { posts, done: posts.length < opts.pageSize || page >= MAX_PAGE_NUMBER }
+    })
+  }
   const full = effectiveQuery(query, opts)
   const order = hasOrder(full)
   const cursorMode = !order || order === 'id' || order === 'id_desc'

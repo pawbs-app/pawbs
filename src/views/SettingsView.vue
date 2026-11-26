@@ -9,7 +9,7 @@ import RelayNotice from '@/components/RelayNotice.vue'
 import HeldNotice from '@/components/HeldNotice.vue'
 import BlacklistNotice from '@/components/BlacklistNotice.vue'
 import BlacklistSync from '@/components/BlacklistSync.vue'
-import { compareWithAccount } from '@/services/blacklistSync'
+import { compareWithAccount, diffBlacklists, mergeBlacklists, siteGuestBlacklist } from '@/services/blacklistSync'
 import { syncOnSignIn } from '@/services/followSync'
 import InstallNotice from '@/components/InstallNotice.vue'
 import { useInstallPrompt } from '@/composables/installPrompt'
@@ -234,6 +234,23 @@ const gridPreloadModes: { key: PreloadMode; title: string; text: string }[] = [
 ]
 
 // ---------- blacklist ----------
+// A guest: the site's default rules missing from pawbs's blacklist (services/blacklistSync), added on request.
+const guestDefault = ref<string | null>(null)
+watch(
+  () => (sites.hasAccount ? '' : (sites.active?.url ?? '')),
+  (url) => {
+    guestDefault.value = null
+    if (url) void siteGuestBlacklist(url).then((t) => (guestDefault.value = t))
+  },
+  { immediate: true },
+)
+const guestMissing = computed(() => (guestDefault.value ? diffBlacklists(blacklist.text, guestDefault.value).onlyThere.filter((l) => !l.startsWith('#')) : []))
+function addGuestDefault() {
+  if (!guestDefault.value) return
+  const before = blacklist.text
+  blacklist.text = mergeBlacklists(blacklist.text, guestDefault.value)
+  ui.toast('The site’s default rules added', { tone: 'ok', action: { label: 'Undo', run: () => (blacklist.text = before) } })
+}
 const blacklistRules = computed(() => blacklist.rules.length)
 const blacklistIssues = computed(() =>
   blacklist.text
@@ -534,9 +551,20 @@ void DEFAULT_SETTINGS
             />
           </div>
           <label class="rv-setting">
-            <span>Score and favourites on hover</span>
+            <span>Score and favourites on thumbnails <span class="faint">(on hover; always shown on touch screens)</span></span>
             <input v-model="S.showThumbStats" class="rv-switch" type="checkbox" />
           </label>
+          <div class="rv-setting">
+            <span>Posts already seen <span class="faint">(opened in the gallery: in searches, Following, Popular and similar pictures; Hide leaves out those seen before the list was opened)</span></span>
+            <Segmented
+              v-model="S.seenPosts"
+              :options="[
+                { value: 'show', label: 'Show' },
+                { value: 'dim', label: 'Dim' },
+                { value: 'hide', label: 'Hide' },
+              ]"
+            />
+          </div>
           <label class="rv-setting">
             <span>Trending and rising tags on Home</span>
             <input v-model="S.homeTrends" class="rv-switch" type="checkbox" />
@@ -724,6 +752,10 @@ void DEFAULT_SETTINGS
             />
           </div>
           <BlacklistSync v-if="sites.hasAccount" />
+          <div v-else-if="guestMissing.length" class="row sp wrap">
+            <button class="rv-btn rv-btn--sm" type="button" :title="guestMissing.join('\n')" @click="addGuestDefault"><Icon name="eye-off" />Add the site’s default rules ({{ guestMissing.length }})</button>
+            <span class="rv-hint">What {{ sites.active?.name }} hides from visitors without an account; nothing of yours is removed.</span>
+          </div>
         </section>
         <section class="block">
           <div class="block-head">

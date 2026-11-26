@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { persistentScoped } from './persist'
 import { useSites } from './sites'
+import { useSettings } from './settings'
 
 /* Recent searches, per site. (Saved searches became follows in 1.15.0: stores/follows, moved over
    by stores/boardData.) */
@@ -19,6 +20,8 @@ export const useSearches = defineStore('searches', () => {
   const recent = persistentScoped<RecentSearch[]>(scope, 'recent', () => [])
 
   function remember(query: string) {
+    // Private session (Settings › Privacy): nothing kept.
+    if (useSettings().s.pauseHistory) return
     const q = query.trim()
     if (!q) return
     const prev = recent.value.find((r) => r.q === q)

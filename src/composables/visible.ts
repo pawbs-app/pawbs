@@ -3,6 +3,8 @@ import type { Post } from '@/api/types'
 import { useBlacklist } from '@/stores/blacklist'
 import { useHidden } from '@/stores/hidden'
 import { useSettings } from '@/stores/settings'
+import { useHistory } from '@/stores/history'
+import { seenMode } from './seen'
 
 /** Posts minus the blacklisted ones (when the blacklist hides rather than masks) and the ones marked
     "not interested" (unless `keepHidden` says the list is one's own: favourites, collections). */
@@ -10,6 +12,9 @@ export function useVisiblePosts(posts: Ref<Post[]>, opts: { keepHidden?: () => b
   const blacklist = useBlacklist()
   const settings = useSettings()
   const notInterested = useHidden()
+  const history = useHistory()
+  // Posts seen before this list was entered, left out when Settings › Browsing says so (composables/seen).
+  const mode = seenMode()
   const hiddenIds = computed(() => {
     void blacklist.rules
     void blacklist.revealed
@@ -23,7 +28,8 @@ export function useVisiblePosts(posts: Ref<Post[]>, opts: { keepHidden?: () => b
   const visible = computed(() => {
     const hide = settings.s.blacklistMode === 'hide' && hiddenIds.value.size > 0
     const gone = opts.keepHidden?.() ? null : notInterested.ids
-    const shown = (p: Post) => usable(p) && !(gone?.has(p.id)) && !(hide && hiddenIds.value.has(p.id))
+    const seenBefore = !opts.keepHidden?.() && mode.value === 'hide' ? history.before : null
+    const shown = (p: Post) => usable(p) && !(gone?.has(p.id)) && !(hide && hiddenIds.value.has(p.id)) && !seenBefore?.has(p.id)
     if (posts.value.every(shown)) return posts.value
     return posts.value.filter(shown)
   })

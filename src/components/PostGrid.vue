@@ -22,6 +22,9 @@ import { usePostActions } from '@/composables/postActions'
 import { useSelection, type SelectAction } from '@/stores/selection'
 import { gridAhead } from '@/services/netinfo'
 import { release, want } from '@/services/preloader'
+import { phone } from '@/composables/phone'
+import { seenMode } from '@/composables/seen'
+import { useHistory } from '@/stores/history'
 
 const props = withDefaults(
   defineProps<{
@@ -103,7 +106,12 @@ const split = computed(() => {
 })
 
 const narrow = computed(() => width.value > 0 && width.value < 600)
-const size = computed(() => settings.s.thumbSize)
+// Posts already opened in the gallery, dimmed when Settings › Browsing says so (composables/seen).
+const seenHow = seenMode()
+const history = useHistory()
+const dimmed = (p: Post) => !props.personal && seenHow.value === 'dim' && history.seenSet.has(p.id)
+// A phone held upright has its own size (GridTools), denser or larger than the computer's.
+const size = computed(() => (phone.value ? settings.s.thumbSizePhone : settings.s.thumbSize))
 
 function aspect(p: Post, lo: number, hi: number) {
   const w = p.width || p.previewWidth || 1
@@ -501,6 +509,7 @@ function open(p: Post) {
           v-for="c in row.cells"
           :key="c.post.id"
           :post="c.post"
+          :seen="dimmed(c.post)"
           :w="c.w"
           :h="c.h"
           :fresh="isNew(c.post)"
@@ -534,6 +543,7 @@ function open(p: Post) {
           class="cv"
           :style="{ containIntrinsicSize: `${c.w}px ${c.h}px` }"
           :post="c.post"
+          :seen="dimmed(c.post)"
           :w="c.w"
           :h="c.h"
           :fresh="isNew(c.post)"
@@ -567,6 +577,7 @@ function open(p: Post) {
         class="cv"
         :style="{ containIntrinsicSize: `${c.w}px ${c.h}px` }"
         :post="c.post"
+        :seen="dimmed(c.post)"
         :w="c.w"
         :h="c.h"
         :fresh="isNew(c.post)"
