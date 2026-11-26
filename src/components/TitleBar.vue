@@ -16,6 +16,7 @@ import { closeAssistant, leaveAssistantFor, openAssistant } from '@/composables/
 import { useClickOutside } from '@/composables/dom'
 import { dropFeedCache } from '@/services/feed'
 import { BETA } from '@/features'
+import { lockNow, vaultOn } from '@/services/lock'
 
 const route = useRoute()
 const router = useRouter()
@@ -199,6 +200,8 @@ defineExpose({ focusSearch: () => search.value?.focus() })
         <RouterLink :replace="qaStep" to="/settings/sites" class="row-action" @click="siteOpen = false"><Icon name="plus" />Add or edit sites…</RouterLink>
       </div>
     </div>
+    <!-- Encryption on (Settings › Privacy): lock every tab now. -->
+    <button v-if="vaultOn" class="rv-icon-btn lock-btn" type="button" title="Lock pawbs (H)" aria-label="Lock pawbs" @click="lockNow"><Icon name="lock" /></button>
     <RouterLink :replace="qaStep"
       to="/settings"
       class="rv-icon-btn settings-btn"
@@ -404,8 +407,9 @@ defineExpose({ focusSearch: () => search.value?.focus() })
     padding: 0 7px;
     letter-spacing: 0.1em;
   }
-  /* Sections and Settings are the tab bar's and More's on a phone. */
+  /* Sections, Settings and Lock are the tab bar's and More's on a phone. */
   .navmenu-wrap,
+  .lock-btn,
   .settings-btn {
     display: none !important;
   }

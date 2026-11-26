@@ -25,6 +25,12 @@ export interface Settings {
   homeTrends: boolean
   /** The installed app's icon shows how many new posts the followed tags have (where supported). */
   appBadge: boolean
+  /** With encryption on: locks after this many minutes without use (0: never). */
+  lockIdle: number
+  /** With encryption on: locks after this many minutes in the background (0: at once, -1: never). */
+  lockHidden: number
+  /** While pawbs is in the background its content is covered (what the app switcher shows). */
+  coverHidden: boolean
   defaultFilter: string
   blockFlash: boolean
   poolLayout: PoolLayout
@@ -73,6 +79,9 @@ export const DEFAULT_SETTINGS: Settings = {
   fx: true,
   homeTrends: true,
   appBadge: true,
+  lockIdle: 15,
+  lockHidden: 5,
+  coverHidden: false,
   defaultFilter: '',
   blockFlash: true,
   poolLayout: 'list',

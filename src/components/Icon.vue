@@ -64,6 +64,7 @@ const ICONS: Record<string, string[]> = {
   random: ['M1.5 1.5h13v13h-13z', 'f:M4 4h2v2H4zM10 10h2v2h-2zM7 7h2v2H7z'],
   filter: ['M1.5 2.5h13l-5 6v5l-3 1.5v-6.5z'],
   key: ['M5.5 7a3 3 0 1 1 0 6a3 3 0 1 1 0-6z', 'M7.5 8l6-6M11 4.5l2 2'],
+  lock: ['M3 7.5h10v7H3z', 'M5.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5'],
   sets: ['M1.5 5.5h10v9h-10z', 'M4 3h10.5v9'],
   similar: ['M1.5 1.5h8v8h-8z', 'M6.5 6.5h8v8h-8z'],
   camera: ['M1.5 4.5h3l1.5-2h4l1.5 2h3v9h-13z', 'M8 6.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5z'],

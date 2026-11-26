@@ -19,7 +19,8 @@ import { useUi } from './stores/ui'
 import { useSites } from './stores/sites'
 import { useFollows } from './stores/follows'
 import { useSettings } from './stores/settings'
-import { onStorageQuota, persistNow, storageProblem } from './stores/persist'
+import { onStorageQuota, persistNow, storageProblem, vaultMeta } from './stores/persist'
+import { lockNow, refreshVaultOn, startLock } from './services/lock'
 import { KeyLevel, pushKeyLayer } from './services/keyboard'
 import { APP_VERSION, warmUp } from './api/client'
 import { useInstall } from './composables/install'
@@ -125,6 +126,10 @@ function submitAssistant(q: string) {
   void leaveAssistantFor({ path: '/posts', query: q ? { q } : {} })
 }
 
+// Locking (encryption on: Settings › Privacy) and the cover in the app switcher (services/lock).
+refreshVaultOn()
+startLock(() => ({ idle: settings.s.lockIdle, hidden: settings.s.lockHidden, cover: settings.s.coverHidden }))
+
 // App-wide keys sit at the bottom of the key layers.
 onMounted(() => {
   pushKeyLayer((e) => {
@@ -140,6 +145,10 @@ onMounted(() => {
     }
     if (e.key === '?') {
       ui.shortcutsOpen = !ui.shortcutsOpen
+      return true
+    }
+    if ((e.key === 'h' || e.key === 'H') && vaultMeta()) {
+      lockNow()
       return true
     }
     if (e.key === 'Escape' && ui.assistantOpen) {
@@ -192,6 +201,12 @@ onMounted(() => {
 
 let reloadPending = false
 function reloadForUpdate() {
+  // Encrypted: a reload means unlocking again, so the new version waits for the next lock.
+  if (vaultMeta()) {
+    if (!reloadPending) ui.toast('A new version of pawbs is ready: it loads the next time pawbs locks')
+    reloadPending = true
+    return
+  }
   if (ui.busy) {
     if (!reloadPending) ui.toast('A new version of pawbs is ready: it loads when the save finishes')
     reloadPending = true

@@ -24,7 +24,8 @@ import { useCollections } from '@/stores/collections'
 import { useHidden, type HiddenPost } from '@/stores/hidden'
 import { useTagCache } from '@/stores/tagcache'
 import { useUi } from '@/stores/ui'
-import { allKeys, clearAll, removeKey, storageBackend, storageBytes } from '@/stores/persist'
+import { allKeys, clearAll, removeKey, storageBackend, storageBytes, vaultMeta } from '@/stores/persist'
+import PrivacySettings from '@/components/PrivacySettings.vue'
 import { probeSite, verifyAccount } from '@/api/endpoints'
 import { APP_VERSION, normalizeSiteUrl } from '@/api/client'
 import { describeConnection } from '@/services/netinfo'
@@ -115,6 +116,7 @@ const allSections = [
   { key: 'preloading', label: 'Preloading', icon: 'speed', sub: 'What loads ahead of you' },
   { key: 'blacklist', label: 'Blacklist', icon: 'eye-off', sub: 'Tags kept out of sight, posts hidden' },
   { key: 'saving', label: 'Saving', icon: 'download', sub: 'File names, and how files are saved' },
+  { key: 'privacy', label: 'Privacy', icon: 'lock', sub: 'Encryption, passkeys, auto-lock' },
   { key: 'data', label: 'Data', icon: 'folder', sub: 'Storage, backup, moving to another device' },
   { key: 'about', label: 'About', icon: 'info', sub: 'Version, help and the project' },
 ]
@@ -272,8 +274,8 @@ const backupData = collectData
 const hasApiKey = computed(() => sites.sites.some((s) => !!s.apiKey))
 const exporting = ref<{ encrypt: boolean; password: string; confirm: string; busy: boolean; error: string } | null>(null)
 function openExport() {
-  // A backup holding an API key starts with encryption on.
-  exporting.value = { encrypt: canEncrypt && hasApiKey.value, password: '', confirm: '', busy: false, error: '' }
+  // A backup holding an API key, or of data kept encrypted, starts with encryption on.
+  exporting.value = { encrypt: canEncrypt && (hasApiKey.value || !!vaultMeta()), password: '', confirm: '', busy: false, error: '' }
 }
 const exportProblem = computed(() => {
   const e = exporting.value
@@ -768,6 +770,10 @@ void DEFAULT_SETTINGS
       </template>
 
       <!-- Data -->
+      <template v-else-if="section === 'privacy'">
+        <PrivacySettings />
+      </template>
+
       <template v-else-if="section === 'data'">
         <section class="block">
           <h2 class="rv-heading rv-label">Stored in this browser</h2>

@@ -107,6 +107,18 @@ year if it is preloaded, end-to-end encryption to the origin (Cloudflare: SSL "F
 the container's port bound to the proxy only (for example `127.0.0.1:8080:8080`) so it cannot be
 reached around the CDN.
 
+### Encryption on the device
+
+Optional (Settings › Privacy), with the browser's Web Crypto only; `src/services/vault.ts` describes it in
+full. A random 32-byte master secret gives, through HKDF-SHA-256, an AES-256-GCM key for the stored values
+(a fresh nonce for each write, the value's slot as associated data) and an HMAC-SHA-256 key that replaces
+each value's name with an opaque one. The master secret is stored only wrapped (AES-256-GCM), once per way
+to unlock: a password (PBKDF2-HMAC-SHA-256, 600 000 iterations), a passkey (the WebAuthn PRF extension,
+through HKDF; a passkey without PRF cannot be used) and a recovery code (120 random bits). A locked app reads
+nothing at start-up; unlocking decrypts the data into memory, and locking reloads the page, so nothing
+decrypted stays. Auto-lock follows use and visibility across the app's tabs. The browser's own cache of
+pictures and history of visited addresses are outside the app's reach.
+
 ## Notes
 
 - The file host of a site may refuse requests without a `Referer` (often only for files its CDN has not

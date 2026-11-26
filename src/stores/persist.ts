@@ -8,8 +8,13 @@
    as before.
 
    Writes are batched, other tabs are followed through a BroadcastChannel, and a full storage is
-   reported once instead of failing silently. */
+   reported once instead of failing silently.
+
+   With encryption on (services/vault), every value is sealed just before it goes to IndexedDB, under
+   an opaque name, and the record VAULT_KEY says how to unlock. Such a store starts locked: nothing is
+   read into memory until unlockStorage gets the keys. */
 import { ref, watch, type Ref } from 'vue'
+import { VAULT_KEY, isVaultMeta, seal, slotName, unseal, type VaultKeys, type VaultMeta } from '@/services/vault'
 
 const PREFIX = 'ngg:'
 const DB_NAME = 'nggallery'
@@ -37,6 +42,41 @@ let problem: string | null = null
 /** Why stored data could not be loaded at start-up, to tell the person (null when all is well). */
 export const storageProblem = () => problem
 
+// ---------- encryption ----------
+/** Set when the store is encrypted; `keys` while it is unlocked. */
+let vault: { meta: VaultMeta; keys: VaultKeys | null } | null = null
+/** Each value's opaque name, once worked out (unlocked only). */
+const slots = new Map<string, string>()
+/** How to unlock (null: not encrypted). */
+export const vaultMeta = (): VaultMeta | null => vault?.meta ?? null
+/** Encrypted and not unlocked yet: nothing is in memory. */
+export const isLocked = () => !!vault && !vault.keys
+/** The keys of the unlocked store (to hand to another tab of the app). */
+export const vaultKeys = (): VaultKeys | null => vault?.keys ?? null
+async function slotFor(keys: VaultKeys, key: string): Promise<string> {
+  let slot = slots.get(key)
+  if (!slot) {
+    slot = await slotName(keys, key)
+    slots.set(key, slot)
+  }
+  return slot
+}
+type Stored = string | Uint8Array<ArrayBuffer>
+type Op = [string, Stored | null]
+/** A batch of changes (by name) as IndexedDB writes: sealed under their opaque names when encrypted.
+    The plain name is deleted too, so nothing written before encryption stays readable. */
+async function toOps(batch: [string, string | null][]): Promise<Op[]> {
+  if (!vault) return batch
+  const keys = vault.keys
+  if (!keys) throw new Error('pawbs is locked: nothing can be saved.')
+  const ops: Op[] = []
+  for (const [k, v] of batch) {
+    const slot = await slotFor(keys, k)
+    ops.push([k, null], [slot, v == null ? null : await seal(keys, slot, k, v)])
+  }
+  return ops
+}
+
 // ---------- IndexedDB ----------
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -53,21 +93,26 @@ function openDb(): Promise<IDBDatabase> {
     req.onblocked = () => reject(new Error('IndexedDB blocked'))
   })
 }
-function readAll(d: IDBDatabase): Promise<Map<string, string>> {
+function readAll(d: IDBDatabase): Promise<Map<string, Stored>> {
   return new Promise((resolve, reject) => {
-    const out = new Map<string, string>()
+    const out = new Map<string, Stored>()
     const req = d.transaction(STORE, 'readonly').objectStore(STORE).openCursor()
     req.onsuccess = () => {
       const c = req.result
       if (!c) return resolve(out)
-      if (typeof c.key === 'string' && typeof c.value === 'string') out.set(c.key, c.value)
+      const v = c.value as unknown
+      if (typeof c.key === 'string') {
+        if (typeof v === 'string') out.set(c.key, v)
+        else if (v instanceof Uint8Array) out.set(c.key, new Uint8Array(v))
+        else if (v instanceof ArrayBuffer) out.set(c.key, new Uint8Array(v))
+      }
       c.continue()
     }
     req.onerror = () => reject(req.error)
   })
 }
 /** Write (or, for null, delete) these keys in one transaction; resolves once it is on disk. */
-function commit(d: IDBDatabase, batch: [string, string | null][], clearFirst = false): Promise<void> {
+function commit(d: IDBDatabase, batch: Op[], clearFirst = false): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = d.transaction(STORE, 'readwrite')
     const os = tx.objectStore(STORE)
@@ -130,7 +175,25 @@ export async function initStorage(): Promise<void> {
       got = await load(10000) // the data is there: worth a second, longer try (a slow phone)
     }
     const { d } = got
-    let data = got.data
+    const metaRaw = got.data.get(VAULT_KEY)
+    if (typeof metaRaw === 'string') {
+      let meta: unknown = null
+      try {
+        meta = JSON.parse(metaRaw)
+      } catch {
+        /* checked below */
+      }
+      if (isVaultMeta(meta)) {
+        // Encrypted: locked until unlockStorage. Nothing is read now (it would be stale by then).
+        db = d
+        vault = { meta, keys: null }
+        mem = new Map()
+        backend = 'indexeddb'
+        return
+      }
+    }
+    let data = new Map<string, string>()
+    for (const [k, v] of got.data) if (typeof v === 'string') data.set(k, v)
     const legacy = readLocal()
     if (!data.size && legacy.size) {
       await commit(d, [...legacy])
@@ -165,6 +228,100 @@ export async function initStorage(): Promise<void> {
   for (const [key, raw] of early.splice(0)) applyExternal(key, raw)
 }
 
+/** Open the encrypted store with these keys (unwrapped by the lock screen): everything is read and
+    decrypted into memory. Resolves with how many values did not open (damaged ones, left out). */
+export async function unlockStorage(keys: VaultKeys): Promise<number> {
+  if (!vault) return 0
+  db ??= await openDb()
+  const raw = await readAll(db)
+  const out = new Map<string, string>()
+  const plain: [string, string][] = []
+  let bad = 0
+  for (const [slot, v] of raw) {
+    if (slot === VAULT_KEY) continue
+    if (typeof v === 'string') {
+      plain.push([slot, v]) // written unencrypted (by a tab that did not know yet): sealed below
+      continue
+    }
+    const pair = await unseal(keys, slot, v)
+    if (!pair) {
+      bad++
+      continue
+    }
+    out.set(pair[0], pair[1])
+    slots.set(pair[0], slot)
+  }
+  for (const [k, v] of plain) if (!out.has(k)) out.set(k, v)
+  vault.keys = keys
+  mem = out
+  started = true
+  for (const [k, v] of plain) queue(k, v)
+  for (const [key, rawValue] of early.splice(0)) applyExternal(key, rawValue)
+  return bad
+}
+
+/** Everything stored, rewritten in one transaction (so a failure leaves the store as it was): sealed
+    with `next` (encryption on, or a new data key), or plain (null: encryption off). */
+async function rewriteAll(next: { meta: VaultMeta; keys: VaultKeys } | null): Promise<void> {
+  if (backend !== 'indexeddb') throw new Error('Encryption needs IndexedDB, which this browser does not offer here.')
+  await persistNow()
+  const before = vault
+  // From now on new changes are written the new way; they queue behind the rewrite below.
+  vault = next ? { meta: next.meta, keys: next.keys } : null
+  slots.clear()
+  const run = committing.then(async () => {
+    const ops: Op[] = []
+    if (next) {
+      ops.push([VAULT_KEY, JSON.stringify(next.meta)])
+      for (const [k, v] of mem) {
+        const slot = await slotFor(next.keys, k)
+        ops.push([slot, await seal(next.keys, slot, k, v)])
+      }
+    } else for (const [k, v] of mem) ops.push([k, v])
+    db ??= await openDb()
+    await commit(db, ops, true)
+  })
+  committing = run.catch(() => {})
+  lastCommit = run
+  try {
+    await run
+  } catch (e) {
+    vault = before
+    slots.clear()
+    if (isQuota(e)) onQuota(QUOTA_MESSAGE)
+    throw e
+  }
+  vaultChannel?.postMessage({ t: 'changed' })
+}
+/** Turn encryption on with these keys and this way of unlocking. */
+export const encryptStorage = (meta: VaultMeta, keys: VaultKeys) => rewriteAll({ meta, keys })
+/** Turn encryption off: everything is stored readable again. */
+export const decryptStorage = () => rewriteAll(null)
+/** Store a changed list of ways to unlock (the data itself is not rewritten). */
+export async function saveVaultMeta(meta: VaultMeta): Promise<void> {
+  if (!vault?.keys) throw new Error('pawbs is locked.')
+  vault.meta = meta
+  const run = committing.then(async () => {
+    db ??= await openDb()
+    await commit(db, [[VAULT_KEY, JSON.stringify(meta)]])
+  })
+  committing = run.catch(() => {})
+  await run
+  vaultChannel?.postMessage({ t: 'meta', meta })
+}
+
+/* The other tabs of the app: encryption turned on or off there means this tab reloads (it would go
+   on writing the old way); a changed list of ways to unlock is taken as it is. Locking and handing
+   the keys to a new tab are services/lock's. */
+const vaultChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ngg-vault-store') : null
+vaultChannel?.addEventListener('message', (e: MessageEvent<{ t?: unknown; meta?: unknown }>) => {
+  const { t, meta } = e.data ?? {}
+  if (t === 'changed') {
+    freezeStorage()
+    window.location.reload()
+  } else if (t === 'meta' && vault && isVaultMeta(meta)) vault.meta = meta
+})
+
 // ---------- writes ----------
 const dirty = new Map<string, string | null>()
 let committing: Promise<void> = Promise.resolve()
@@ -185,9 +342,10 @@ export function freezeStorage(on = true) {
 
 /** Rejects when the batch could not be saved (after telling the person). */
 async function commitWithRetry(batch: [string, string | null][]) {
+  const ops = await toOps(batch)
   try {
     db ??= await openDb()
-    await commit(db, batch)
+    await commit(db, ops)
   } catch (e) {
     if (isQuota(e)) {
       onQuota(QUOTA_MESSAGE)
@@ -196,7 +354,7 @@ async function commitWithRetry(batch: [string, string | null][]) {
     // A connection the browser closed under us: once more, on a fresh one.
     try {
       db = await openDb()
-      await commit(db, batch)
+      await commit(db, ops)
     } catch (e2) {
       onQuota(isQuota(e2) ? QUOTA_MESSAGE : 'Could not save to this browser’s storage: your last changes may be lost.')
       throw e2
@@ -250,7 +408,12 @@ channel?.addEventListener('message', (e: MessageEvent<{ key?: unknown; raw?: unk
   const { key, raw } = e.data ?? {}
   if (typeof key !== 'string' || (raw !== null && typeof raw !== 'string')) return
   // Before start-up has read the store, the message would be lost under what it reads: kept for then.
-  if (!started) early.push([key, raw])
+  if (!started) {
+    // (Only the latest of each key: a tab left locked for long would otherwise pile them up.)
+    const i = early.findIndex(([k]) => k === key)
+    if (i >= 0) early.splice(i, 1)
+    early.push([key, raw])
+  }
   else applyExternal(key, raw)
 })
 /** Called when another tab of the app changes a stored value. */
@@ -271,7 +434,7 @@ export function readJson<T>(key: string, fallback: T): T {
 
 export function writeJson(key: string, value: unknown): boolean {
   const raw = JSON.stringify(value)
-  if (raw === undefined || frozen) return false
+  if (raw === undefined || frozen || isLocked()) return false
   // Storage that could not be opened: this tab started empty and saves nothing. What it holds must
   // not reach the app's other tabs either, which would take it for the newer state and save it.
   if (backend === 'unavailable') {
@@ -292,7 +455,7 @@ export function writeJson(key: string, value: unknown): boolean {
 }
 
 export function removeKey(key: string) {
-  if (frozen) return
+  if (frozen || isLocked()) return
   mem.delete(key)
   if (backend === 'unavailable') return
   if (backend === 'localstorage') removeLocal([key])
@@ -345,6 +508,9 @@ export async function clearAll(): Promise<void> {
   const keys = [...mem.keys()]
   mem.clear()
   removeLocal([...keys, ...readLocal().keys(), ...LOCAL_ONLY])
+  const wasEncrypted = !!vault
+  vault = null
+  slots.clear()
   if (backend === 'indexeddb') {
     await committing
     try {
@@ -355,6 +521,7 @@ export async function clearAll(): Promise<void> {
     }
   }
   for (const k of keys) channel?.postMessage({ key: k, raw: null })
+  if (wasEncrypted) vaultChannel?.postMessage({ t: 'changed' })
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', flush)

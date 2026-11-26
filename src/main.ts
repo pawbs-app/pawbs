@@ -3,7 +3,8 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import { router, prefetchViews } from './router'
 import { useSites } from './stores/sites'
-import { initStorage, persistNow } from './stores/persist'
+import { initStorage, isLocked, persistNow } from './stores/persist'
+import { unlockFirst } from './lockScreen'
 import { moveSavedSearches, shareBoardData } from './stores/boardData'
 import { warmUp } from './api/client'
 import { watchOwnRequests } from './services/held'
@@ -39,6 +40,8 @@ window.addEventListener('vite:preloadError', (e) => {
 // Stored data is read into memory before any store or view asks for it (stores/persist); what e621
 // and e926 still keep apart is merged into their shared set first (stores/boardData).
 await initStorage()
+// Encrypted (Settings › Privacy): nothing is read until the lock screen opens the store.
+if (isLocked()) await unlockFirst()
 shareBoardData()
 moveSavedSearches()
 

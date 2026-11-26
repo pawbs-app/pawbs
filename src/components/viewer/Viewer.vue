@@ -1837,6 +1837,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
     role="dialog"
     aria-modal="true"
     :aria-label="post ? `Post ${post.id}` : 'Viewer'"
+    :data-slideshow="slideshow && !slidePaused ? 'on' : undefined"
     @pointerdown.capture="noteInput"
     @pointermove.capture="noteInput"
     @focusin="onFocusIn"

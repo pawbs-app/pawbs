@@ -8,6 +8,7 @@ import { useUi } from '@/stores/ui'
 import { useInstall } from '@/composables/install'
 import { useInstallPrompt } from '@/composables/installPrompt'
 import SiteRows from './SiteRows.vue'
+import { lockNow, vaultOn } from '@/services/lock'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -45,6 +46,10 @@ function doInstall() {
     <button v-if="canInstall" class="sheet-row" type="button" @click="doInstall">
       <Icon name="install" :size="18" />
       <span class="grow"><span>Install app</span><span class="sub">pawbs on the home screen, full screen, offline</span></span>
+    </button>
+    <button v-if="vaultOn" class="sheet-row" type="button" @click="lockNow">
+      <Icon name="lock" :size="18" />
+      <span class="grow"><span>Lock pawbs</span></span>
     </button>
     <button class="sheet-row" type="button" @click="go('/settings')">
       <Icon name="settings" :size="18" />

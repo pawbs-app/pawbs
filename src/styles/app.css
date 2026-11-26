@@ -634,3 +634,18 @@ button.chip:hover {
     display: none;
   }
 }
+
+/* The cover (services/lock): while pawbs is in the background (Settings › Privacy) or locking, none
+   of it shows, only the paw: what the system's app switcher keeps as its preview. */
+html.is-covered #app {
+  visibility: hidden;
+}
+html.is-covered body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: var(--bg)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='128 133 256 256'%3E%3Cg fill='%232f2f2f'%3E%3Cpath d='M256 248c-30 0-52 22-70 46c-16 22-30 36-30 56c0 22 18 34 40 34c22 0 38-10 60-10s38 10 60 10c22 0 40-12 40-34c0-20-14-34-30-56c-18-24-40-46-70-46z'/%3E%3Cellipse cx='218' cy='176' rx='28' ry='38'/%3E%3Cellipse cx='294' cy='176' rx='28' ry='38'/%3E%3Cellipse cx='160' cy='236' rx='25' ry='33' transform='rotate(-24 160 236)'/%3E%3Cellipse cx='352' cy='236' rx='25' ry='33' transform='rotate(24 352 236)'/%3E%3C/g%3E%3C/svg%3E")
+    center / 96px no-repeat;
+}

@@ -2,6 +2,7 @@
 import Dialog from './Dialog.vue'
 import { useSettings } from '@/stores/settings'
 import { DOWNLOADS } from '@/features'
+import { vaultOn } from '@/services/lock'
 const emit = defineEmits<{ close: [] }>()
 const settings = useSettings()
 const groups = [
@@ -11,6 +12,7 @@ const groups = [
       ['/', 'Search'],
       ['Q', 'Query assistant'],
       ['?', 'This list'],
+      ...(vaultOn.value ? [['H', 'Lock pawbs']] : []),
       ['Esc', 'Close what is open'],
       ['Right-click', 'Shortcuts for what is under the pointer (Shift: the browser’s menu)'],
     ],

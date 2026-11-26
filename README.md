@@ -17,6 +17,8 @@ straight from your browser to e621 or e926, and what you keep stays on your devi
 - **Keep** favourites, collections and sets on the device, with or without an e621 account, and a
   blacklist in e621's own syntax.
 - **Move** everything to another device with a QR code (encrypted on the device), or back it up to a file.
+- **Lock** it all if you like: encrypted on the device, opened with a passkey or a password, locked again
+  after a while.
 - **Fast**: preloading, requests paced under the API's rate limit, and an app shell that opens offline.
 
 All features: [pawbs.app/features](https://pawbs.app/features) · FAQ: [pawbs.app/faq](https://pawbs.app/faq).
