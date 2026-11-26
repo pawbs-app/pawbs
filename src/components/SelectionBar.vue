@@ -6,6 +6,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import BulkSaveDialog from './BulkSaveDialog.vue'
+import { DOWNLOADS } from '@/features'
 import type { Post } from '@/api/types'
 import { useSelection } from '@/stores/selection'
 import { useFavorites } from '@/stores/favorites'
@@ -103,7 +104,7 @@ useKeyLayer((e) => {
     <button class="rv-btn rv-btn--sm" type="button" :title="mySets.available ? 'Add the selected posts to a collection or set' : 'Add the selected posts to a collection'" @click="addTo">
       <Icon name="collection" /><span class="lbl">Add to…</span>
     </button>
-    <button class="rv-icon-btn" type="button" title="Save the files of the selected posts…" @click="bulk = sel.posts"><Icon name="download" /></button>
+    <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Save the files of the selected posts…" @click="bulk = sel.posts"><Icon name="download" /></button>
     <button class="rv-icon-btn" type="button" title="Not interested: hide the selected posts for good" @click="notInterested"><Icon name="eye-off" /></button>
     <template v-for="a in sel.extra" :key="a.label">
       <button class="rv-icon-btn" :class="{ danger: a.danger }" type="button" :title="a.label" @click="runExtra(a.run)"><Icon :name="a.icon" /></button>

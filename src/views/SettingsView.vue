@@ -29,6 +29,7 @@ import { probeSite, verifyAccount } from '@/api/endpoints'
 import { APP_VERSION, normalizeSiteUrl } from '@/api/client'
 import { describeConnection } from '@/services/netinfo'
 import { forgetCors, formatBytes, saveJson } from '@/services/download'
+import { DOWNLOADS } from '@/features'
 import { canEncrypt, decryptBackup, encryptBackup, isEncryptedBackup, WrongPasswordError, type EncryptedBackup } from '@/services/backupCrypto'
 import { dropFeedCache } from '@/services/feed'
 import { collectData, summarize, writeData } from '@/services/backupData'
@@ -107,7 +108,7 @@ const siteLinks = [
   { href: '/faq', label: 'FAQ' },
   { href: '/privacy', label: 'Privacy' },
 ]
-const sections = [
+const allSections = [
   { key: 'sites', label: 'Sites & account', icon: 'user', sub: 'The sites you browse, signing in' },
   { key: 'browsing', label: 'Browsing', icon: 'grid', sub: 'The grid, and what every search adds' },
   { key: 'viewer', label: 'Gallery', icon: 'play', sub: 'Pictures and videos, full screen' },
@@ -117,6 +118,7 @@ const sections = [
   { key: 'data', label: 'Data', icon: 'folder', sub: 'Storage, backup, moving to another device' },
   { key: 'about', label: 'About', icon: 'info', sub: 'Version, help and the project' },
 ]
+const sections = allSections.filter((s) => s.key !== 'saving' || DOWNLOADS)
 const section = computed(() => (sections.some((s) => s.key === route.params.section) ? (route.params.section as string) : 'sites'))
 /* The phone: Settings opens on its sections as a list (as a phone's own settings do), each one a page
    of its own with the title bar's back arrow, instead of a strip of tabs scrolled sideways. */

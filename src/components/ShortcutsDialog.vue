@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Dialog from './Dialog.vue'
 import { useSettings } from '@/stores/settings'
+import { DOWNLOADS } from '@/features'
 const emit = defineEmits<{ close: [] }>()
 const settings = useSettings()
 const groups = [
@@ -43,7 +44,7 @@ const groups = [
       ['K', 'Add to the collection last added to'],
       ['Shift + K', 'Add to a collection…'],
       ['X', 'Not interested: hide it, on to the next'],
-      ['D', 'Download'],
+      ...(DOWNLOADS ? [['D', 'Download']] : []),
       ['O  C', 'Open original / copy link'],
       ['Z', 'Zoom: fit → width → actual size'],
       ['+  −', 'Zoom in / out (back to fit: double-click)'],

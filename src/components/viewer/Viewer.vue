@@ -32,6 +32,7 @@ import { effectsOn } from '@/services/zoomFx'
 import { openMenu } from '@/services/contextMenu'
 import { wantPoolNames } from '@/services/poolNames'
 import { usePostActions } from '@/composables/postActions'
+import { DOWNLOADS } from '@/features'
 import { formatBytes, formatTime, RATING_LABEL } from '@/utils/format'
 import { renderDText } from '@/utils/dtext'
 
@@ -1742,6 +1743,7 @@ useKeyLayer((e) => {
       return true
     case 'd':
     case 'D':
+      if (!DOWNLOADS) return false
       void download()
       return true
     case 'o':
@@ -2081,7 +2083,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
         <button class="rv-icon-btn" :class="{ 'is-shaped': saved }" type="button" :title="saved ? 'Remove from favourites (S)' : 'Save to favourites (S)'" @click="toggleSave">
           <Icon :name="saved ? 'bookmark-on' : 'bookmark'" />
         </button>
-        <button class="rv-icon-btn" type="button" title="Download (D)" @click="download"><Icon name="download" /></button>
+        <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Download (D)" @click="download"><Icon name="download" /></button>
         <button class="rv-icon-btn hide-s" type="button" title="Open original (O)" @click="openOriginal"><Icon name="external" /></button>
         <button class="rv-icon-btn hide-s" type="button" title="Copy link (C)" @click="copyLink"><Icon name="link" /></button>
         <button

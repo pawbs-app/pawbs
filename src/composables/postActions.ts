@@ -8,6 +8,7 @@ import { useSites } from '@/stores/sites'
 import { useTagCache } from '@/stores/tagcache'
 import { useUi } from '@/stores/ui'
 import { corsKnown, fileName, savePost } from '@/services/download'
+import { DOWNLOADS } from '@/features'
 import { openInNewTab, type MenuSource } from '@/services/contextMenu'
 import { copyText } from '@/composables/dom'
 import { prettyTag } from '@/query/syntax'
@@ -38,6 +39,7 @@ export function usePostActions() {
   const postUrl = (p: Post) => (sites.active ? `${sites.active.url}/posts/${p.id}` : null)
 
   async function download(p: Post) {
+    if (!DOWNLOADS) return
     if (!p.fileUrl) {
       ui.toast('No file to save for this post', { tone: 'warn' })
       return
@@ -88,7 +90,7 @@ export function usePostActions() {
         hint: 'S',
         run: () => say(favorites.toggle(p) ? 'Saved to favourites' : 'Removed from favourites'),
       },
-      { label: 'Download', icon: 'download', hint: 'D', disabled: !p.fileUrl, run: () => download(p) },
+      ...(DOWNLOADS ? [{ label: 'Download', icon: 'download', hint: 'D', disabled: !p.fileUrl, run: () => download(p) }] : []),
       'sep',
       { label: 'Copy link to the post', icon: 'link', hint: 'C', disabled: !sites.active, run: async () => say((await copyLink(p)) ? 'Link copied' : 'Could not copy the link') },
       { label: 'Copy file address', icon: 'copy', disabled: !p.fileUrl, run: async () => say((await copyFile(p)) ? 'File address copied' : 'Could not copy the address') },

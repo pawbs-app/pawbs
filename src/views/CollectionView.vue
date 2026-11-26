@@ -8,6 +8,7 @@ import PostGrid from '@/components/PostGrid.vue'
 import PageMore from '@/components/PageMore.vue'
 import GridTools from '@/components/GridTools.vue'
 import BulkSaveDialog from '@/components/BulkSaveDialog.vue'
+import { DOWNLOADS } from '@/features'
 import StatePanel from '@/components/StatePanel.vue'
 import CollectionEditDialog from '@/components/CollectionEditDialog.vue'
 import Icon from '@/components/Icon.vue'
@@ -121,7 +122,7 @@ const selectActions: SelectAction[] = [
         <button class="rv-icon-btn" type="button" title="Edit the collection…" @click="editing = true"><Icon name="edit" /></button>
         <button class="rv-icon-btn" type="button" title="Delete the collection" @click="removeCollection"><Icon name="trash" /></button>
         <button class="rv-icon-btn" type="button" title="Add these posts to another collection or set…" :disabled="!list.length" @click="ui.addToSet = { posts: list, title: c.name }"><Icon name="collection" /></button>
-        <button class="rv-icon-btn" type="button" title="Save these posts…" :disabled="!list.length" @click="bulk = true"><Icon name="download" /></button>
+        <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Save these posts…" :disabled="!list.length" @click="bulk = true"><Icon name="download" /></button>
         <GridTools />
         <PageMore />
       </div>

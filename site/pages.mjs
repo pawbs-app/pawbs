@@ -12,7 +12,7 @@ export const faq = [
   {
     group: 'The basics',
     items: [
-      ['What is pawbs?', 'pawbs is a free viewer for e621 and e926 that runs in your browser. It is a faster, cleaner way to search, browse, follow and save posts, on a phone as well as on a computer, and it installs like an app.'],
+      ['What is pawbs?', 'pawbs is a free viewer for e621 and e926 that runs in your browser. It is a faster, cleaner way to search, browse and follow posts and keep favourites, on a phone as well as on a computer, and it installs like an app.'],
       ['What is e621?', 'e621 is a large furry art archive, a “booru”: pictures, animations and comics tagged by its community. It is an adult site, for people aged 18 and over. e926 is its safe-for-work version.'],
       ['Is pawbs an alternative front end for e621?', 'Yes. pawbs is a different interface over the same posts, tags, pools and accounts. It hosts and copies nothing: what you do with an account, such as favourites, votes and sets, happens on e621 itself.'],
       ['Is pawbs affiliated with e621?', 'No. pawbs is an independent, unofficial client. It talks to e621 and e926 through their public API, within their rate limits, and says who it is in every request.'],
@@ -35,7 +35,6 @@ export const faq = [
     items: [
       ['Does my e621 blacklist work?', 'Yes. When you sign in, your account’s blacklist is imported (if you have not written one in pawbs yet). You can edit it in Settings › Blacklist, in the same search language, and choose to hide or mask what it catches.'],
       ['Can I see my e621 favourites?', 'Yes, with an account. pawbs also keeps favourites of its own on your device, works without an account, and can sync them with your e621 favourites or import them.'],
-      ['Can I download posts and whole pools?', 'Yes. Single posts open or save under a file name pattern you choose. For many posts at once, such as a pool, a search or a selection, pawbs makes a link list for your download manager (plain or aria2). e621’s file server does not let web pages read its files, so a ZIP straight from the page is not possible there. More on <a href="/downloads">downloads</a>.'],
       ['Can I read e621 comics and pools?', 'Yes. Comics on e621 are pools. pawbs reads a pool in order, as a grid, in the gallery or as one long scroll, and remembers where you left each one. See the <a href="/pools">pool reader</a>.'],
       ['Is there a slideshow?', 'Yes. Press P in the gallery: pictures stay a few seconds, videos play to the end, and the screen stays awake.'],
       ['Does it play videos?', 'Yes, WebM and MP4, in the rendition closest to your screen size, with scrubbing, frame stepping and an A-B loop. Flash posts are left out by default (Settings › Browsing).'],
@@ -60,9 +59,9 @@ export const pages = [
   {
     slug: 'features',
     nav: 'Features',
-    title: 'pawbs features: e621 search, pools, slideshow, downloads',
-    description: 'Everything pawbs does as an e621 and e926 viewer: tag autocomplete, a query assistant, followed tags and searches, a pool reader, sets, slideshow, video A-B loop, downloads.',
-    updated: '2026-11-24',
+    title: 'pawbs features: e621 search, pools, slideshow, favourites',
+    description: 'Everything pawbs does as an e621 and e926 viewer: tag autocomplete, a query assistant, followed tags and searches, a pool reader, sets, slideshow, video A-B loop, favourites.',
+    updated: '2026-11-26',
     crumb: 'Features',
     h1: 'A faster way to browse e621',
     lede: 'pawbs puts e621 and e926 in a fast, clean interface made for long sessions, on a phone as well as on a computer. Here is what it does.',
@@ -96,18 +95,18 @@ export const pages = [
   <div class="card"><h3>Sets</h3><p>Browse public sets and keep them in a library, no account needed. With an account, make and edit your own.</p></div>
 </div>
 
-<h2>Keep and save</h2>
+<h2>Keep and organise</h2>
 <ul class="list">
   <li>Favourites on your device, filtered and sorted, optionally synced with your e621 favourites.</li>
   <li>Collections: your own named lists of posts, made without an account.</li>
-  <li>Select many posts at once (Ctrl or Shift click, or a long press) to favourite them, add them to a collection or set, save them or hide them together.</li>
-  <li>Downloads named by a pattern such as <code>{id}-{artist}.{ext}</code>. Many posts at once become a link list for your download manager (plain or aria2). <a href="/downloads">About&nbsp;downloads</a></li>
+  <li>Select many posts at once (Ctrl or Shift click, or a long press) to favourite them, add them to a collection or set, or hide them together.</li>
   <li>“Not interested”: put a single post out of sight for good, with Undo.</li>
 </ul>
 
 <h2>Fast by design</h2>
 <ul class="list">
   <li>The next posts load and decode before you get there, in the direction you are browsing; slow connections and data saver scale it down.</li>
+  <li>While you scroll, the thumbnails and results of the next screens load ahead, so the grid stays filled.</li>
   <li>Pictures in the sharpest size the space needs, not more.</li>
   <li>Requests are scheduled under the site’s rate limit, with what you wait for first.</li>
   <li>Back is instant and lands exactly where you were.</li>
@@ -135,7 +134,7 @@ export const pages = [
     title: 'e621 pool reader: read comics and pools in order · pawbs',
     description: 'Read e621 comics and pools in order with pawbs: as a grid, in a full-screen gallery or as one long scroll. It remembers the page where you left each one.',
     published: '2026-11-23',
-    updated: '2026-11-23',
+    updated: '2026-11-26',
     top: false,
     crumb: 'Pool reader',
     h1: 'An e621 pool reader for comics and series',
@@ -151,61 +150,18 @@ export const pages = [
 <h2>Three ways to read</h2>
 <div class="cards">
   <div class="card"><h3>Grid</h3><p>Every page as a thumbnail, in pool order. Good for finding a chapter or a scene.</p></div>
-  <div class="card"><h3>Gallery</h3><p>Press <b>Read</b> for one page at a time, full height. ${kbd('←')} and ${kbd('→')} turn the pages, ${kbd('Z')} zooms,. Swipe to turn the pages on touch screens.</p></div>
+  <div class="card"><h3>Gallery</h3><p>Press <b>Read</b> for one page at a time, full height. ${kbd('←')} and ${kbd('→')} turn the pages, ${kbd('Z')} zooms. Swipe to turn the pages on touch screens.</p></div>
   <div class="card"><h3>One long scroll</h3><p>Switch the reading mode to <b>Scroll</b> and the pages come one under the other, to read without turning anything.</p></div>
 </div>
 
 <h2>Pick up where you left off</h2>
 <p>pawbs notes the last page you looked at in each pool. Open the pool again and a <b>Continue</b> button takes you to that page, while the list of pools shows how far you read, such as “read 12/40”. This is kept in your browser, with no account needed.</p>
-<p>Save a pool to your library with the bookmark button and it stays one tap away. When a saved pool gets new pages, the library shows how many were added since you last opened it, and can put those pools first.</p>
-
-<h2>Save a whole pool</h2>
-<p>The download button on a pool saves the pages loaded on screen, named by the pattern you chose. On e621 that means a link list for your download manager: see <a href="/downloads">downloads</a> for why. The same pages can also go into a collection of your own.</p>
+<p>Save a pool to your library with the bookmark button and it stays one tap away. When a saved pool gets new pages, the library shows how many were added since you last opened it, and can put those pools first. A pool’s pages can also go into a collection of your own.</p>
 
 <h2>On e926 too</h2>
 <p>Pools work the same way on <a href="/e926">e926</a>, the safe-for-work side of e621. Choose e926 on the first screen of <a href="/">pawbs.app</a>.</p>
 
 <p class="note">pawbs is free and needs no account to read pools. <a href="/features">All&nbsp;features</a></p>`,
-  },
-  {
-    slug: 'downloads',
-    nav: 'Downloads',
-    title: 'e621 downloader: save posts and whole pools · pawbs',
-    description: 'Download e621 posts with pawbs: one file at a time under a name pattern you choose, or a pool, a search or a selection as a link list for a download manager.',
-    published: '2026-11-23',
-    updated: '2026-11-23',
-    top: false,
-    crumb: 'Downloads',
-    h1: 'Download e621 posts, pools and searches',
-    lede: 'pawbs saves one post under a file name you design, and turns many posts into a list your download manager can fetch. Here is how it works, and what a web page cannot do.',
-    body: `
-<h2>One post</h2>
-<p>In the gallery, press ${kbd('D')} to download the post you are looking at. Where the file host lets pawbs read the file, it is saved straight away under your file name. On e621 the original opens in a new tab instead, and you save it from there.</p>
-
-<h2>File names</h2>
-<p>Settings › Saving holds the file name pattern, <code>{id}-{artist}.{ext}</code> to begin with. Build your own from these tokens:</p>
-<ul class="list">
-  <li><code>{id}</code>, <code>{md5}</code> and <code>{ext}</code>: the post number, the file’s hash and its extension.</li>
-  <li><code>{artist}</code>, <code>{character}</code>, <code>{species}</code> and <code>{copyright}</code>: up to three tags of that kind, joined with <code>+</code>.</li>
-  <li><code>{tags}</code>: the first five general tags.</li>
-  <li><code>{rating}</code>, <code>{date}</code>, <code>{width}</code>, <code>{height}</code> and <code>{score}</code>.</li>
-</ul>
-<p>Characters a file name cannot hold are replaced.</p>
-
-<h2>Many at once</h2>
-<p>A search, a pool, your favourites, a collection, a set or a selection of posts each have a download button. It counts the posts loaded on the page, estimates their total size and offers two lists:</p>
-<ul class="list">
-  <li><b>Links</b>: a plain text file, one file address per line.</li>
-  <li><b>aria2 list</b>: each address with its file name, so <code>aria2c -i</code> fetches every post under the name from your pattern.</li>
-</ul>
-
-<h2>Why a link list and not a ZIP</h2>
-<p>Browsers only let a page read files from a host that allows it, and e621’s file server does not. So a ZIP straight from the page is not possible there, and a download manager does the fetching. pawbs tests each file host once and remembers the answer: on a compatible board whose host does allow it, the same dialog offers a ZIP, or a folder you pick in browsers that support it.</p>
-
-<h2>Within the rules</h2>
-<p>pawbs schedules its own requests under the site’s rate limit, and it fetches no files to write a link list. Keep your download manager just as polite.</p>
-
-<p class="note">Reading a comic first? See the <a href="/pools">pool reader</a>.</p>`,
   },
   {
     slug: 'search',
@@ -290,12 +246,12 @@ export const pages = [
   {
     slug: 'faq',
     nav: 'FAQ',
-    title: 'pawbs FAQ: e621 account, API key, blacklist, downloads',
-    description: 'Answers about pawbs, the free e621 and e926 viewer: do you need an account, why an API key, privacy, blacklist, downloads, videos, iPhone and Android.',
+    title: 'pawbs FAQ: e621 account, API key, blacklist, videos',
+    description: 'Answers about pawbs, the free e621 and e926 viewer: do you need an account, why an API key, privacy, blacklist, videos, iPhone and Android.',
     updated: '2026-11-25',
     crumb: 'FAQ',
     h1: 'Questions about pawbs',
-    lede: 'Accounts, privacy, downloads, devices: the questions people ask about pawbs, answered.',
+    lede: 'Accounts, privacy, videos, devices: the questions people ask about pawbs, answered.',
     faq: true,
   },
   {
@@ -325,7 +281,7 @@ export const pages = [
 <ul class="list">
   <li>Tag search with autocomplete and the query assistant.</li>
   <li>Followed tags and searches with new-post counts, pools read in order, sets and popular posts.</li>
-  <li>Favourites, collections, the blacklist and downloads.</li>
+  <li>Favourites, collections and the blacklist.</li>
   <li>The gallery, slideshow and video controls. <a href="/features">All&nbsp;features</a></li>
 </ul>
 
@@ -350,7 +306,7 @@ export const pages = [
 
 <h2>How it works</h2>
 <ul class="list">
-  <li>pawbs is a web app. Your browser downloads it from pawbs.app once, then it runs on your device, even offline.</li>
+  <li>pawbs is a web app. Your browser fetches it from pawbs.app once, then it runs on your device, even offline.</li>
   <li>Searches and pictures go straight from your browser to e621 or e926, through their public API. pawbs respects their rate limits and names itself in every request, with a contact address.</li>
   <li>What you keep (favourites, follows, collections, settings) stays in your browser. There are no pawbs accounts.</li>
   <li>The pawbs server only delivers the app and, when you ask for it, relays an end-to-end encrypted transfer between your own devices. <a href="/privacy">Privacy in detail</a></li>

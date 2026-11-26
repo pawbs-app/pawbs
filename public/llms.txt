@@ -23,7 +23,6 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 - Similar pictures and artist links
 - Viewer with zoom, slideshow, video controls with an A-B loop, keyboard shortcuts and touch gestures
 - Blacklist, imported from the e621 account
-- Downloads one by one, or many at once (such as a whole pool) as a link list for a download manager
 - Encrypted transfer of all data to another device, and backup files
 - Installs as an app (iPhone and iPad: Safari, Share, Add to Home Screen; Android, Windows, macOS, Linux, ChromeOS: the browser's install option) and starts offline
 
@@ -33,9 +32,8 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 - [Features](https://pawbs.app/features): everything pawbs does, in detail
 - [Search](https://pawbs.app/search): tag autocomplete, the query assistant, saved searches
 - [Pool reader](https://pawbs.app/pools): reading e621 pools and comics in order
-- [Downloads](https://pawbs.app/downloads): saving posts, and whole pools as link lists
 - [Install](https://pawbs.app/install): how to install pawbs on iPhone, iPad, Android, Windows, macOS, Linux and ChromeOS
-- [FAQ](https://pawbs.app/faq): accounts and API keys, privacy, blacklist, favourites, downloads, devices
+- [FAQ](https://pawbs.app/faq): accounts and API keys, privacy, blacklist, favourites, devices
 - [pawbs for e926](https://pawbs.app/e926): using pawbs with e926, the safe-for-work version of e621
 - [About](https://pawbs.app/about): why pawbs exists and how it works
 - [Privacy](https://pawbs.app/privacy): what stays on the device and what the server sees

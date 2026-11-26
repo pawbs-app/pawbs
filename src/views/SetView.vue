@@ -10,6 +10,7 @@ import PostGrid from '@/components/PostGrid.vue'
 import PageMore from '@/components/PageMore.vue'
 import GridTools from '@/components/GridTools.vue'
 import BulkSaveDialog from '@/components/BulkSaveDialog.vue'
+import { DOWNLOADS } from '@/features'
 import StatePanel from '@/components/StatePanel.vue'
 import Dialog from '@/components/Dialog.vue'
 import SetEditDialog from '@/components/SetEditDialog.vue'
@@ -209,7 +210,7 @@ useRefresh(() => feed.value?.reload())
         <button class="rv-icon-btn" type="button" title="Add the loaded posts to a collection…" :disabled="!feed?.posts.value.length" @click="addLoaded">
           <Icon name="collection" />
         </button>
-        <button class="rv-icon-btn" type="button" title="Save the loaded posts…" :disabled="!feed?.posts.value.length" @click="bulk = true"><Icon name="download" /></button>
+        <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Save the loaded posts…" :disabled="!feed?.posts.value.length" @click="bulk = true"><Icon name="download" /></button>
         <a v-if="sites.active" class="rv-icon-btn" :href="`${sites.active.url}/post_sets/${set.id}`" target="_blank" rel="noopener noreferrer" :title="`Open on ${sites.active.name}`"><Icon name="external" /></a>
         <GridTools />
         <PageMore />

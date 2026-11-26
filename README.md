@@ -16,7 +16,6 @@ straight from your browser to e621 or e926, and what you keep stays on your devi
   notes, and details (tags, wiki, comments, pools).
 - **Keep** favourites, collections and sets on the device, with or without an e621 account, and a
   blacklist in e621's own syntax.
-- **Download** a post, a pool or a whole search, named by your own pattern.
 - **Move** everything to another device with a QR code (encrypted on the device), or back it up to a file.
 - **Fast**: preloading, requests paced under the API's rate limit, and an app shell that opens offline.
 

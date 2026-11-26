@@ -27,6 +27,11 @@ const choice = ref<string | null>(boards[0].host)
 const custom = ref(false)
 const customUrl = ref('')
 const url = computed(() => (custom.value ? customUrl.value : (choice.value ?? '')))
+/** The picked site's terms of use (a custom board's address for them is not known: no link). */
+const terms = computed(() => {
+  const b = custom.value ? null : boards.find((x) => x.host === choice.value)
+  return b ? { href: `https://${b.host}/terms_of_use`, site: b.label } : null
+})
 const customInput = ref<HTMLInputElement | null>(null)
 const customBtn = ref<HTMLButtonElement | null>(null)
 function openCustom() {
@@ -265,6 +270,12 @@ const siteLinks = [
         </ul>
         <p v-if="error" class="rv-hint bad rv-selectable" role="alert">{{ error }}</p>
 
+        <p class="rv-hint terms">
+          By using pawbs, you accept
+          <template v-if="terms"><a :href="terms.href" target="_blank" rel="noopener">{{ terms.site }}’s terms of&nbsp;use</a>.</template>
+          <template v-else>the terms of use of the site you&nbsp;browse.</template>
+        </p>
+
         <div class="actions">
           <RouterLink v-if="sites.sites.length" class="rv-btn" to="/">Cancel</RouterLink>
           <RouterLink v-else-if="canReceive" class="rv-btn" to="/receive" title="Set up this device with the data of another one"><Icon name="camera" />From another device</RouterLink>
@@ -425,6 +436,17 @@ const siteLinks = [
 }
 .site-hint {
   margin: -8px 0 0;
+}
+.terms {
+  margin: 0;
+  text-wrap: pretty;
+}
+.terms a {
+  color: var(--text);
+  text-underline-offset: 3px;
+}
+.terms a:hover {
+  text-decoration-thickness: 2px;
 }
 .nowrap {
   white-space: nowrap;

@@ -7,6 +7,7 @@ import PostGrid from '@/components/PostGrid.vue'
 import PageMore from '@/components/PageMore.vue'
 import GridTools from '@/components/GridTools.vue'
 import BulkSaveDialog from '@/components/BulkSaveDialog.vue'
+import { DOWNLOADS } from '@/features'
 import Icon from '@/components/Icon.vue'
 import { useFavorites } from '@/stores/favorites'
 import { useSites } from '@/stores/sites'
@@ -94,7 +95,7 @@ function exportJson() {
       </button>
       <button v-if="sites.hasAccount" v-new-tab="{ path: '/posts', query: { q: `fav:${sites.active!.username}` } }" class="rv-icon-btn" type="button" title="Search the account’s favourites on the site" @click="router.push({ path: '/posts', query: { q: `fav:${sites.active!.username}` } })"><Icon name="search" /></button>
       <button class="rv-icon-btn" type="button" title="Add these favourites to a collection…" :disabled="!list.length" @click="ui.addToSet = { posts: list, title: 'favourites' }"><Icon name="collection" /></button>
-      <button class="rv-icon-btn" type="button" title="Save these posts…" :disabled="!list.length" @click="bulk = true"><Icon name="folder" /></button>
+      <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Save these posts…" :disabled="!list.length" @click="bulk = true"><Icon name="folder" /></button>
       <button class="rv-icon-btn" type="button" title="Export as JSON" :disabled="!favorites.count" @click="exportJson"><Icon name="list" /></button>
       <GridTools />
       <PageMore />

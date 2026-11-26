@@ -11,6 +11,7 @@ import PageMore from '@/components/PageMore.vue'
 import GridTools from '@/components/GridTools.vue'
 import RelatedTags from '@/components/RelatedTags.vue'
 import BulkSaveDialog from '@/components/BulkSaveDialog.vue'
+import { DOWNLOADS } from '@/features'
 import Icon from '@/components/Icon.vue'
 import ArtistLinks from '@/components/ArtistLinks.vue'
 import JumpDateDialog from '@/components/JumpDateDialog.vue'
@@ -183,7 +184,7 @@ useRefresh(reload)
       </button>
       <!-- Icons, with their words on wide screens (.tb). -->
       <button class="rv-icon-btn tb" type="button" title="Add the loaded posts to a collection…" :disabled="!posts.length" @click="addLoadedToSet"><Icon name="collection" /><span class="lbl">Collect</span></button>
-      <button class="rv-icon-btn tb" type="button" title="Save the loaded posts…" :disabled="!posts.length" @click="bulk = true"><Icon name="download" /><span class="lbl">Download</span></button>
+      <button v-if="DOWNLOADS" class="rv-icon-btn tb" type="button" title="Save the loaded posts…" :disabled="!posts.length" @click="bulk = true"><Icon name="download" /><span class="lbl">Download</span></button>
       <button
         class="rv-icon-btn tb"
         :class="{ 'is-active': since }"
