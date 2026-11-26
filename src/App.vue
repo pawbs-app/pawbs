@@ -233,7 +233,8 @@ watch(
 )
 const UPDATE_CHECK_MS = 5 * 60_000
 let swReg: ServiceWorkerRegistration | undefined
-const { offlineReady } = useRegisterSW({
+// (Ready to open offline: said nowhere; it is how the app works, not news at each first load.)
+useRegisterSW({
   immediate: true,
   onNeedReload: reloadForUpdate,
   onRegisteredSW(_url, reg) {
@@ -256,7 +257,6 @@ const { offlineReady } = useRegisterSW({
     window.addEventListener('online', () => check(true))
   },
 })
-watch(offlineReady, (v) => v && ui.toast('pawbs is ready to open offline', { tone: 'ok' }))
 // Is this server holding requests back for a check? Asked once settled (the update check asks each
 // time it runs). When the check page reports it passed, the update a hold kept out is looked for at
 // once, wherever this page is (the check's tab is in front).
