@@ -40,6 +40,9 @@ export default defineConfig({
   base: './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // The commit the image was built from (CI passes BUILD_REF), shown in Settings › About; empty in
+    // a local build.
+    __BUILD_REF__: JSON.stringify(/^[0-9a-f]{7,40}$/.test(process.env.BUILD_REF ?? '') ? process.env.BUILD_REF : ''),
   },
   preview: {
     headers: productionHeaders(),

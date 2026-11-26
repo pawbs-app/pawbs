@@ -1,6 +1,10 @@
 # pawbs pipeline
 #   merge requests and other branches → type-check and build the app
-#   default branch                    → image (amd64 + arm64) → smoke test → tags `X.Y.Z` and `latest`
+#   beta                              → image (amd64 + arm64) → smoke test → tag `beta` → beta site
+#   default branch                    → image → smoke test → tags `X.Y.Z` and `latest` → main site
+# A release normally reaches the default branch from `beta` (a fast-forward): its commit was already
+# built and tested there, so that same image is released, not a rebuild. Only a commit new to the
+# registry (one pushed straight to the default branch) is built.
 # Released images are in this project's container registry, $CI_REGISTRY_IMAGE
 # (registry.gitlab.com/<group>/<project>), tagged with their version (package.json) and `latest`. A build
 # waits for its smoke test in $CI_REGISTRY_IMAGE/candidates, tagged with its commit; the build cache is
@@ -28,7 +32,7 @@ default:
   interruptible: true
 
 .image-pipeline: &image-pipeline
-  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH == "beta"
 
 # The app's version, from package.json ("1.9.3"); a job fails without one.
 .version: &version
@@ -49,7 +53,7 @@ check:
   rules:
     - if: $CI_COMMIT_TAG
       when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH == "beta"
       when: never
     - when: on_success
   cache:
@@ -76,6 +80,13 @@ build-image:
   rules: *image-pipeline
   script:
     - *version
+    # A commit already in the registry (built on `beta`, then promoted) keeps its image: what ships is
+    # what the beta site ran.
+    - |
+      if docker buildx imagetools inspect "$CI_REGISTRY_IMAGE/candidates:$CI_COMMIT_SHORT_SHA" > /dev/null 2>&1; then
+        echo "Keeping the image already built for $CI_COMMIT_SHORT_SHA"
+        exit 0
+      fi
     # With dind over TLS, buildx needs an explicit context to create a builder.
     - docker context create ci-context
     - docker buildx create --name ci --driver docker-container --use ci-context
@@ -90,6 +101,7 @@ build-image:
       --label org.opencontainers.image.revision=$CI_COMMIT_SHA
       --label org.opencontainers.image.source=$CI_PROJECT_URL
       --label org.opencontainers.image.version=$VERSION
+      --build-arg BUILD_REF=$CI_COMMIT_SHORT_SHA
       --tag $CI_REGISTRY_IMAGE/candidates:$CI_COMMIT_SHORT_SHA
       --push
       .
@@ -235,7 +247,24 @@ smoke-test:
       if grep -qi 'immutable' missing-h.txt; then echo "A missing asset is cached for a year"; exit 1; fi
       grep -qi '^cross-origin-opener-policy: same-origin' headers.txt
       grep -qi "frame-ancestors 'none'" headers.txt
+      # The beta channel: the same image at a "beta." address keeps search engines away (pages and
+      # files alike); the main site does not.
+      curl -fsSI -H 'Host: beta.pawbs.app' http://app:8080/ | grep -i '^x-robots-tag: noindex' > /dev/null
+      curl -fsSI -H 'Host: beta.pawbs.app' http://app:8080/faq | grep -i '^x-robots-tag: noindex' > /dev/null
+      curl -fsSI -H 'Host: beta.pawbs.app' "http://app:8080/$ASSET" | grep -i '^x-robots-tag: noindex' > /dev/null
+      curl -fsSI -H 'Host: pawbs.app' http://app:8080/ > main.txt
+      if grep -qi '^x-robots-tag' headers.txt main.txt; then echo "The main site asks not to be indexed"; exit 1; fi
       echo "Smoke test passed"
+
+# The tested build goes to the beta site: tagged `beta`.
+release-beta:
+  extends: .docker
+  stage: release
+  rules:
+    - if: $CI_COMMIT_BRANCH == "beta"
+  script:
+    - docker buildx imagetools create --tag "$CI_REGISTRY_IMAGE:beta" "$CI_REGISTRY_IMAGE/candidates:$CI_COMMIT_SHORT_SHA"
+    - echo "Released $CI_REGISTRY_IMAGE:beta from $CI_COMMIT_SHORT_SHA"
 
 # The tested build becomes the release: tagged with its version and `latest`. (A commit that does not
 # change the version moves that version's tag to its newer build.)
@@ -261,7 +290,24 @@ deploy:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOY_WEBHOOK_URL
   environment:
     name: production
+    url: https://pawbs.app
   script:
     - apk add --no-cache curl
     - curl --fail --silent --show-error --retry 3 --retry-all-errors --max-time 120 -o /dev/null -w 'Webhook answered HTTP %{http_code}\n' -X POST "$DEPLOY_WEBHOOK_URL"
     - echo "Redeploy requested for $CI_COMMIT_SHORT_SHA"
+
+# The same for the beta site, once `beta` points at the new image: DEPLOY_BETA_WEBHOOK_URL (masked and
+# protected too) is the beta site's own stack webhook.
+deploy-beta:
+  stage: deploy
+  image: alpine:3
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == "beta" && $DEPLOY_BETA_WEBHOOK_URL
+  environment:
+    name: beta
+    url: https://beta.pawbs.app
+  script:
+    - apk add --no-cache curl
+    - curl --fail --silent --show-error --retry 3 --retry-all-errors --max-time 120 -o /dev/null -w 'Webhook answered HTTP %{http_code}\n' -X POST "$DEPLOY_BETA_WEBHOOK_URL"
+    - echo "Beta redeploy requested for $CI_COMMIT_SHORT_SHA"

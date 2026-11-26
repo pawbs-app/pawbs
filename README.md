@@ -36,8 +36,8 @@ holds an encrypted blob for five minutes and hands it out once. Details:
 docker run -d --name pawbs -p 8080:8080 registry.gitlab.com/pawbs.app/pawbs:latest
 ```
 
-The image (`:latest`, or `:X.Y.Z` to pin a release) is built and tested by the GitLab pipeline, for
-amd64 and arm64; `docker build -t pawbs .` builds the same from a clone. An unprivileged nginx on port
+The image (`:latest`, `:X.Y.Z` to pin a release, or `:beta` for the changes being tried before a
+release) is built and tested by the GitLab pipeline, for amd64 and arm64; `docker build -t pawbs .` builds the same from a clone. An unprivileged nginx on port
 8080 serves the build with security headers, pre-compressed files and the transfer relay;
 `deploy/docker-compose.yml` does the same with Compose. `dist/` also works on any static host over
 HTTPS, without device transfers.

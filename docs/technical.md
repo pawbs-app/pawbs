@@ -37,6 +37,7 @@ browsers that accept it. HTTP/2 and HTTP/3 come from whatever terminates TLS in 
 | --- | --- |
 | `latest` | a commit on the default branch passes the smoke test |
 | `X.Y.Z` | the same commit: the version in `package.json` (pin this to stay on a release) |
+| `beta` | a commit on the `beta` branch passes the smoke test (what beta.pawbs.app runs) |
 
 ```sh
 docker build -t pawbs .
@@ -53,6 +54,15 @@ the image, to test changes to `deploy/headers.conf` locally.
 with `pull_policy: always` in its compose) in the GitLab CI/CD variable `DEPLOY_WEBHOOK_URL` (masked).
 The `deploy` job calls it once `latest` has moved, so each green pipeline on the default branch
 redeploys with the new image. Without the variable the job is skipped.
+
+**Channels:** changes land on the `beta` branch first. Each green pipeline there tags the image `beta`
+and calls `DEPLOY_BETA_WEBHOOK_URL` (the `deploy-beta` job), which redeploys beta.pawbs.app. A release
+is the default branch fast-forwarded to `beta`: that commit's image is already built and tested, so the
+pipeline releases it as it is (no rebuild) and the main site runs exactly what beta ran. A commit
+pushed straight to the default branch (a fix that cannot wait) is built as usual; `beta` then merges
+the default branch back in, so the next release is still a fast-forward. Served at an address starting
+with `beta.`, the same image adds `X-Robots-Tag: noindex, nofollow` (`deploy/nginx.conf`) and the app
+shows a beta mark; Settings › About shows the build's commit on both.
 
 For the service worker and "install app", browsers require HTTPS (or `localhost`): put the container
 behind a reverse proxy with a certificate (Nginx Proxy Manager, Traefik, Caddy…). Over plain HTTP on a

@@ -2,6 +2,7 @@
 /// <reference types="vite-plugin-pwa/vue" />
 
 declare const __APP_VERSION__: string
+declare const __BUILD_REF__: string
 
 interface ImportMetaEnv {
   readonly VITE_DOWNLOADS?: string

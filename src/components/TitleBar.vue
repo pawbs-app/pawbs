@@ -15,6 +15,7 @@ import { useInbox } from '@/composables/inbox'
 import { closeAssistant, leaveAssistantFor, openAssistant } from '@/composables/assistant'
 import { useClickOutside } from '@/composables/dom'
 import { dropFeedCache } from '@/services/feed'
+import { BETA } from '@/features'
 
 const route = useRoute()
 const router = useRouter()
@@ -126,6 +127,8 @@ defineExpose({ focusSearch: () => search.value?.focus() })
   <header class="rv-titlebar tbar">
     <RouterLink :replace="qaStep" to="/" class="brand" :class="{ 'has-back': canBack }" data-press="on" title="pawbs // Home" aria-label="pawbs, Home" @click="brandPaw?.squeeze()"><PawMark ref="brandPaw" /></RouterLink>
     <button v-if="canBack" class="rv-icon-btn back" type="button" title="Back" aria-label="Back" @click="router.back()"><Icon name="arrow-left" /></button>
+    <!-- The beta channel's mark (features.BETA): this is beta.pawbs.app, not the main site. -->
+    <RouterLink v-if="BETA" :replace="qaStep" to="/settings/about" class="dev beta" title="Beta: changes are tried here before pawbs.app">beta</RouterLink>
 
     <nav class="links" aria-label="Sections">
       <RouterLink :replace="qaStep" v-for="l in links" :key="l.label" :to="l.to" class="lnk" data-press="on" :class="{ on: isOn(l.name) }">
@@ -242,6 +245,14 @@ defineExpose({ focusSearch: () => search.value?.focus() })
   font-size: 1rem; /* the paw's size */
 }
 .brand:hover {
+  background: var(--hover);
+}
+.tbar .beta {
+  flex: none;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.beta:hover {
   background: var(--hover);
 }
 .links {
@@ -388,6 +399,10 @@ defineExpose({ focusSearch: () => search.value?.focus() })
     align-self: stretch;
     width: 44px;
     height: auto;
+  }
+  .tbar .beta {
+    padding: 0 7px;
+    letter-spacing: 0.1em;
   }
   /* Sections and Settings are the tab bar's and More's on a phone. */
   .navmenu-wrap,

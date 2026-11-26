@@ -29,7 +29,7 @@ import { probeSite, verifyAccount } from '@/api/endpoints'
 import { APP_VERSION, normalizeSiteUrl } from '@/api/client'
 import { describeConnection } from '@/services/netinfo'
 import { forgetCors, formatBytes, saveJson } from '@/services/download'
-import { DOWNLOADS } from '@/features'
+import { BETA, BUILD_REF, DOWNLOADS } from '@/features'
 import { canEncrypt, decryptBackup, encryptBackup, isEncryptedBackup, WrongPasswordError, type EncryptedBackup } from '@/services/backupCrypto'
 import { dropFeedCache } from '@/services/feed'
 import { collectData, summarize, writeData } from '@/services/backupData'
@@ -840,7 +840,15 @@ void DEFAULT_SETTINGS
           <h2 class="rv-heading rv-label">pawbs</h2>
           <dl class="rv-dl">
             <dt>Version</dt>
-            <dd class="tabular">{{ APP_VERSION }}</dd>
+            <dd class="tabular">{{ APP_VERSION }}<template v-if="BETA"> beta</template></dd>
+            <template v-if="BUILD_REF">
+              <dt>Build</dt>
+              <dd class="tabular rv-selectable">{{ BUILD_REF }}</dd>
+            </template>
+            <template v-if="BETA">
+              <dt>Beta</dt>
+              <dd>Changes are tried here before they reach <a class="link-btn" href="https://pawbs.app" target="_blank" rel="noopener">pawbs.app</a>. Your settings and favourites here are separate from pawbs.app's: a backup (Data) copies them over.</dd>
+            </template>
             <dt>Installed</dt>
             <dd>{{ installed ? 'Yes, as an app' : 'No, in a browser tab' }}</dd>
             <dt>Offline</dt>
