@@ -7,6 +7,7 @@ import { probeSite, verifyAccount } from '@/api/endpoints'
 import { normalizeSiteUrl } from '@/api/client'
 import { isSfwSite, SFW_HOST, siteNameFromUrl, useSites } from '@/stores/sites'
 import { compareWithAccount } from '@/services/blacklistSync'
+import { syncOnSignIn } from '@/services/followSync'
 import type { UserInfo } from '@/api/types'
 import { checkRelay } from '@/services/transfer'
 import AgeCheck from '@/components/AgeCheck.vue'
@@ -180,6 +181,8 @@ async function connect(): Promise<boolean> {
     sites.add({ url: u, name: siteNameFromUrl(u), username: withAccount.value ? username.value : '', apiKey: withAccount.value ? apiKey.value : '' })
     // The account's blacklist: copied when pawbs has none, else compared (services/blacklistSync).
     if (account) void compareWithAccount({ force: true, known: { userId: account.id, text: account.blacklistedTags ?? '' } })
+    // Its followed tags too: synced from its first sign-in here (services/followSync).
+    if (account) void syncOnSignIn()
     steps.value[i].state = 'done'
     await openOut(boxEl.value)
     void router.replace('/')

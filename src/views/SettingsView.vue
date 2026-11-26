@@ -10,6 +10,7 @@ import HeldNotice from '@/components/HeldNotice.vue'
 import BlacklistNotice from '@/components/BlacklistNotice.vue'
 import BlacklistSync from '@/components/BlacklistSync.vue'
 import { compareWithAccount } from '@/services/blacklistSync'
+import { syncOnSignIn } from '@/services/followSync'
 import InstallNotice from '@/components/InstallNotice.vue'
 import { useInstallPrompt } from '@/composables/installPrompt'
 import { phone } from '@/composables/phone'
@@ -201,7 +202,13 @@ function saveSite() {
   editing.value = null
   if (accountRemoved) ui.toast('Site saved, without its account: the address changed. Enter the account again if it belongs there.', { ms: 9000 })
   else ui.toast('Site saved', { tone: 'ok' })
-  if (signedIn && !accountRemoved) window.setTimeout(() => void compareWithAccount({ force: true }), 0)
+  if (signedIn && !accountRemoved) {
+    const at = normalizeSiteUrl(e.url)
+    window.setTimeout(() => {
+      void compareWithAccount({ force: true })
+      void syncOnSignIn(at || undefined)
+    }, 0)
+  }
 }
 const confirmRemove = ref<SiteConfig | null>(null)
 function removeSite() {

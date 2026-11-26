@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { persistentScoped } from './persist'
+import { persistent, persistentScoped } from './persist'
 import { looksExplicit } from '@/utils/sfwWords'
 import { useSites } from './sites'
 import { useSettings } from './settings'
@@ -56,6 +56,9 @@ export const useFollows = defineStore('follows', () => {
   const checking = ref(false)
   const progress = ref(0)
   const sync = persistentScoped<FollowSync>(scope, 'follows:sync', () => ({ on: false, user: '', snapshot: [], at: 0, error: '' }))
+  /** Accounts ("address|name") whose first sign-in here has turned sync on (services/followSync):
+      later sign-ins keep whatever was chosen since. */
+  const signedInBefore = persistent<string[]>('follows:signed-in', [])
   const syncing = ref(false)
   /** Sync now; resolves with what moved, or null when it failed (the reason in sync.error). */
   async function syncNow(retry = false): Promise<SyncReport | null> {
@@ -328,6 +331,7 @@ export const useFollows = defineStore('follows', () => {
     sync,
     syncing,
     syncNow,
+    signedInBefore,
     stopSync,
     CHECK_LIMIT,
   }

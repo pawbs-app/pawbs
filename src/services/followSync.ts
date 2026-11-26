@@ -15,11 +15,13 @@
    Counting: the synced tags' new posts come from one search, `search:subscriptions`, newest first,
    counted per tag here from each post's tags. A follow whose last seen post lies below what the
    pages reached is left to the usual one-request check. */
+import { nextTick } from 'vue'
 import { aliasTarget, listSubscriptions, searchPosts, subscribeTags, unsubscribeTag, type Subscription } from '@/api/endpoints'
 import { Priority } from '@/api/client'
 import { useFollows, type Follow } from '@/stores/follows'
 import { useSites } from '@/stores/sites'
 import { useSettings } from '@/stores/settings'
+import { useUi } from '@/stores/ui'
 
 /** A tag as the account can hold it (no spaces, metatags or wildcards). */
 export const isPlainTag = (tag: string) => !/[\s:*]/.test(tag)
@@ -132,6 +134,36 @@ export async function syncFollows(opts: { retry?: boolean } = {}): Promise<SyncR
   st.at = Date.now()
   st.error = ''
   return { pulled: pullTags.length, dropped: dropTags.length, pushed, removed, refused, total: remote.size }
+}
+
+/**
+ * An account has just signed in (first setup, or an account entered in Settings › Sites; `site`: the
+ * site's address, when it may not be the one in use). Its first sign-in on this device turns sync on:
+ * the first sync only adds, both ways. Later sign-ins keep what was chosen since; a site without
+ * followed tags stays off, quietly. Accounts signed in before this existed are left as they are.
+ */
+export async function syncOnSignIn(site?: string): Promise<void> {
+  // A first site just added changes the data scope, whose follows and sync state come in on the
+  // next tick: set before that, the choice would land in the old scope's.
+  await nextTick()
+  const follows = useFollows()
+  const s = signedIn()
+  if (!s || (site && site !== s.url)) return
+  const key = `${s.url}|${s.username.toLowerCase()}`
+  if (follows.signedInBefore.includes(key) || follows.sync.on) return
+  follows.sync.on = true
+  follows.sync.error = ''
+  const r = await follows.syncNow()
+  if (!r) {
+    const unsupported = /does not keep followed tags/.test(follows.sync.error)
+    follows.stopSync()
+    // Not now (offline, the site down): tried again at the next sign-in. A site without them: never.
+    if (unsupported) follows.signedInBefore = [...follows.signedInBefore, key]
+    return
+  }
+  follows.signedInBefore = [...follows.signedInBefore, key]
+  const moved = [r.pulled && `${r.pulled} followed from it`, r.pushed && `${r.pushed} added to it`].filter(Boolean).join(', ')
+  useUi().toast(`Followed tags now in sync with your ${s.name} account${moved ? ` (${moved})` : ''}. To stop: Following › Stop syncing`, { tone: 'ok', ms: 9000 })
 }
 
 /** Once, without syncing: the account's tags followed here (nothing removed). */
