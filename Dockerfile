@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- build: the static app, built once on the builder's own platform (output is platform-neutral) ----
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -10,7 +10,8 @@ RUN npm run build
 
 # ---- serve: Alpine's nginx with its Brotli module, as the unprivileged `nginx` user on port 8080 ----
 # (Brotli serves the build's pre-compressed .br copies; the official nginx images lack the module.)
-FROM alpine:3
+# CI builds this stage without its layer cache, so every image gets Alpine's current packages.
+FROM alpine:3 AS serve
 LABEL org.opencontainers.image.title="pawbs"       org.opencontainers.image.url="https://pawbs.app" \
       org.opencontainers.image.description="A fast, installable viewer for image boards with a compatible JSON API" \
       org.opencontainers.image.licenses="AGPL-3.0-only AND OFL-1.1"

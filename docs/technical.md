@@ -13,8 +13,9 @@ npm run preview    # serve dist/ (the service worker is active here)
 npm run icons      # re-render the PNG icons from the SVG mark
 ```
 
-Requires Node 20+. The toolchain is pinned to TypeScript 5.9 and vue-tsc 3.2.9: vue-tsc 3.3.x reports
-false `.value` errors on stores used in narrowing template positions.
+Requires Node 22.12+; the image and CI build on Node 26. The toolchain is pinned to TypeScript 6.0 and
+vue-tsc 3.2.9: vue-tsc 3.3.x reports false `.value` errors on stores used in narrowing template
+positions, and TypeScript 7 waits for a vue-tsc that supports it.
 
 ## Deploy
 

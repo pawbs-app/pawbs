@@ -51,7 +51,7 @@ npm run dev     # http://localhost:5173
 npm run build   # type-check, then build into dist/
 ```
 
-Vue 3, TypeScript and Vite, on Node 22. Storage keys and file formats keep the code's older name,
+Vue 3, TypeScript and Vite, on Node 26. Storage keys and file formats keep the code's older name,
 `nggallery`, so existing data and backups stay compatible. More in [docs/technical.md](docs/technical.md).
 
 The code lives on GitLab, [gitlab.com/pawbs.app/pawbs](https://gitlab.com/pawbs.app/pawbs), where CI
