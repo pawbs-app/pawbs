@@ -222,6 +222,11 @@ export async function getUser(name: string): Promise<UserInfo | null> {
   return normalizeUser(body)
 }
 
+/** Replace the signed-in account's blacklist (the site's own setting, one rule per line). */
+export async function setAccountBlacklist(userId: number, text: string): Promise<void> {
+  await req(`/users/${userId}.json`, { method: 'PATCH', body: { 'user[blacklisted_tags]': text }, auth: true, ttl: 0 })
+}
+
 // ---------- similar pictures, artists, trends ----------
 
 /** Posts whose picture the site finds close to this one's, closest first (the post itself left out). */

@@ -17,6 +17,7 @@ import { useClickOutside } from '@/composables/dom'
 import { dropFeedCache } from '@/services/feed'
 import { BETA } from '@/features'
 import { lockNow, vaultOn } from '@/services/lock'
+import { useBlacklist } from '@/stores/blacklist'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,8 +29,15 @@ const installPrompt = useInstallPrompt()
 const inbox = useInbox()
 // The paw closes when its link is pressed (PawMark.squeeze).
 const brandPaw = ref<InstanceType<typeof PawMark> | null>(null)
+const blacklist = useBlacklist()
 const settingsTitle = computed(() =>
-  ui.held ? 'Settings · held for a check: the app may not be up to date' : installPrompt.suggest.value ? 'Settings · pawbs can be installed as an app' : 'Settings',
+  ui.held
+    ? 'Settings · held for a check: the app may not be up to date'
+    : blacklist.conflict
+      ? 'Settings · your account’s blacklist differs from pawbs’s'
+      : installPrompt.suggest.value
+        ? 'Settings · pawbs can be installed as an app'
+        : 'Settings',
 )
 // The "/" shortcut is for a keyboard and mouse; a touch screen's field is a phone's narrowest part
 // of the bar (beside the site's name): one word.
@@ -210,7 +218,7 @@ defineExpose({ focusSearch: () => search.value?.focus() })
       :aria-label="settingsTitle"
     >
       <Icon name="settings" />
-      <span v-if="ui.held" class="rv-dot rv-dot--warn held-mark" aria-hidden="true"></span>
+      <span v-if="ui.held || blacklist.conflict" class="rv-dot rv-dot--warn held-mark" aria-hidden="true"></span>
       <span v-else-if="installPrompt.suggest.value" class="rv-dot rv-dot--ok held-mark" aria-hidden="true"></span>
     </RouterLink>
   </header>

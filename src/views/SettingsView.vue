@@ -7,6 +7,9 @@ import Dialog from '@/components/Dialog.vue'
 import SendDialog from '@/components/SendDialog.vue'
 import RelayNotice from '@/components/RelayNotice.vue'
 import HeldNotice from '@/components/HeldNotice.vue'
+import BlacklistNotice from '@/components/BlacklistNotice.vue'
+import BlacklistSync from '@/components/BlacklistSync.vue'
+import { compareWithAccount } from '@/services/blacklistSync'
 import InstallNotice from '@/components/InstallNotice.vue'
 import { useInstallPrompt } from '@/composables/installPrompt'
 import { phone } from '@/composables/phone'
@@ -187,6 +190,10 @@ function saveSite() {
     testState.value = { ok: false, text: 'This is not a site address: enter one like https://site.example' }
     return
   }
+  // An account entered or changed: an account signing in, whose blacklist is compared with pawbs's
+  // (services/blacklistSync), once the site is the one in use.
+  const prev = e.isNew ? null : sites.sites.find((x) => x.id === e.id)
+  const signedIn = !!(e.username?.trim() && e.apiKey?.trim()) && (!prev || prev.username !== e.username?.trim() || prev.apiKey !== e.apiKey?.trim())
   if (e.isNew) sites.add({ url: e.url, name: e.name, username: e.username, apiKey: e.apiKey })
   // (An address moved to another host leaves the saved account behind: see the store.)
   const accountRemoved = !e.isNew && !!e.id && sites.update(e.id, { url: e.url, name: e.name || undefined, username: e.username?.trim() ?? '', apiKey: e.apiKey?.trim() ?? '' })
@@ -194,6 +201,7 @@ function saveSite() {
   editing.value = null
   if (accountRemoved) ui.toast('Site saved, without its account: the address changed. Enter the account again if it belongs there.', { ms: 9000 })
   else ui.toast('Site saved', { tone: 'ok' })
+  if (signedIn && !accountRemoved) window.setTimeout(() => void compareWithAccount({ force: true }), 0)
 }
 const confirmRemove = ref<SiteConfig | null>(null)
 function removeSite() {
@@ -202,19 +210,6 @@ function removeSite() {
   confirmRemove.value = null
   dropFeedCache()
   if (!sites.sites.length) router.push('/setup')
-}
-async function importBlacklist() {
-  const s = sites.active
-  if (!s?.username) return
-  try {
-    const user = await verifyAccount(s.url, s.username, s.apiKey)
-    if (!user?.blacklistedTags) return ui.toast('The account has no blacklist', { tone: 'warn' })
-    const lines = user.blacklistedTags.split('\n').map((l) => l.trim()).filter(Boolean)
-    lines.forEach((l) => blacklist.addLine(l))
-    ui.toast(`${lines.length} blacklist rules merged from the account`, { tone: 'ok' })
-  } catch (e) {
-    ui.toast((e as Error).message, { tone: 'bad' })
-  }
 }
 
 // ---------- preloading ----------
@@ -433,10 +428,12 @@ void DEFAULT_SETTINGS
   <div v-if="listed" class="sec-list">
     <div class="page-head"><h1>// Settings</h1></div>
     <HeldNotice class="held-notice" />
+    <BlacklistNotice class="held-notice" />
     <InstallNotice v-if="installPrompt.suggest.value" class="held-notice" />
     <RouterLink v-for="s in sections" :key="s.key" :to="`/settings/${s.key}`" class="sec-row">
       <Icon :name="s.icon" :size="18" />
       <span class="grow"><span class="name">{{ s.label }}</span><span class="sub">{{ s.sub }}</span></span>
+      <span v-if="s.key === 'blacklist' && blacklist.conflict" class="rv-dot rv-dot--warn" title="Your account’s blacklist differs"></span>
       <Icon name="chevron-right" :size="14" />
     </RouterLink>
   </div>
@@ -444,7 +441,9 @@ void DEFAULT_SETTINGS
     <div v-if="phone" class="page-head sec-head"><h1>// {{ sectionLabel }}</h1></div>
     <nav ref="nav" class="rv-nav">
       <div class="head"><span class="rv-label">Settings</span></div>
-      <button v-for="s in sections" :key="s.key" type="button" :class="{ 'is-on': section === s.key }" @click="go(s.key)">{{ s.label }}</button>
+      <button v-for="s in sections" :key="s.key" type="button" :class="{ 'is-on': section === s.key }" @click="go(s.key)">
+        {{ s.label }}<span v-if="s.key === 'blacklist' && blacklist.conflict" class="rv-dot rv-dot--warn nav-dot" title="Your account’s blacklist differs"></span>
+      </button>
       <span class="grow"></span>
       <div class="status"><span class="rv-dot" :class="sites.hasAccount ? 'rv-dot--ok' : ''"></span>{{ sites.active?.name ?? 'No site' }}</div>
     </nav>
@@ -452,6 +451,8 @@ void DEFAULT_SETTINGS
     <div class="content">
       <!-- This server held back by the CDN's check: said above every section. -->
       <HeldNotice class="held-notice" />
+      <!-- The signed-in account's blacklist differs from pawbs's: which to use. -->
+      <BlacklistNotice class="held-notice" />
       <InstallNotice v-if="installPrompt.suggest.value" class="held-notice" />
       <!-- Sites -->
       <template v-if="section === 'sites'">
@@ -488,7 +489,7 @@ void DEFAULT_SETTINGS
               <input v-model="S.sendAccountAlways" class="rv-switch" type="checkbox" />
             </label>
             <div class="row sp">
-              <button class="rv-btn rv-btn--sm" type="button" @click="importBlacklist"><Icon name="eye-off" />Merge the account’s blacklist</button>
+              <RouterLink class="rv-btn rv-btn--sm" to="/settings/blacklist"><Icon name="eye-off" />Blacklist with the account…</RouterLink>
               <RouterLink class="rv-btn rv-btn--sm" to="/favorites"><Icon name="bookmark" />Import favourites…</RouterLink>
             </div>
           </template>
@@ -715,9 +716,7 @@ void DEFAULT_SETTINGS
               ]"
             />
           </div>
-          <div v-if="sites.hasAccount" class="row sp">
-            <button class="rv-btn rv-btn--sm" type="button" @click="importBlacklist"><Icon name="download" />Merge the account’s blacklist</button>
-          </div>
+          <BlacklistSync v-if="sites.hasAccount" />
         </section>
         <section class="block">
           <div class="block-head">
@@ -1028,6 +1027,10 @@ void DEFAULT_SETTINGS
 .held-notice {
   margin: 14px 0 4px;
   max-width: 720px;
+}
+.nav-dot {
+  margin-left: 6px;
+  vertical-align: middle;
 }
 .relay-wait {
   display: flex;

@@ -9,11 +9,13 @@ import { useInstall } from '@/composables/install'
 import { useInstallPrompt } from '@/composables/installPrompt'
 import SiteRows from './SiteRows.vue'
 import { lockNow, vaultOn } from '@/services/lock'
+import { useBlacklist } from '@/stores/blacklist'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const router = useRouter()
 const ui = useUi()
+const blacklist = useBlacklist()
 const { canInstall, install } = useInstall()
 const installPrompt = useInstallPrompt()
 
@@ -53,8 +55,11 @@ function doInstall() {
     </button>
     <button class="sheet-row" type="button" @click="go('/settings')">
       <Icon name="settings" :size="18" />
-      <span class="grow"><span>Settings</span><span v-if="ui.held" class="sub warn">Held for a check: the app may not be up to date</span></span>
-      <span v-if="ui.held" class="rv-dot rv-dot--warn"></span>
+      <span class="grow"
+        ><span>Settings</span><span v-if="ui.held" class="sub warn">Held for a check: the app may not be up to date</span
+        ><span v-else-if="blacklist.conflict" class="sub warn">Your account’s blacklist differs from pawbs’s</span></span
+      >
+      <span v-if="ui.held || blacklist.conflict" class="rv-dot rv-dot--warn"></span>
       <span v-else-if="installPrompt.suggest.value" class="rv-dot rv-dot--ok"></span>
       <Icon name="chevron-right" :size="14" />
     </button>

@@ -87,11 +87,26 @@ function compile(text: string): Rule[] {
   return rules
 }
 
+export interface BlacklistConflict {
+  /** The site's address and name, and the account. */
+  site: string
+  siteName: string
+  user: string
+  userId: number
+  /** The account's blacklist as it was read. */
+  account: string
+}
+
 export const useBlacklist = defineStore('blacklist', () => {
   const text = persistent<string>('blacklist', '')
   const enabled = persistent<boolean>('blacklist:on', true)
   /** Posts revealed for this session despite a matching rule. */
   const revealed = ref(new Set<number>())
+  /** The signed-in account's blacklist differs from this one (services/blacklistSync): kept, and
+      pointed out in Settings, until a choice is made. */
+  const conflict = persistent<BlacklistConflict | null>('blacklist:conflict', null)
+  /** Accounts already compared once ("address|name"), so the check runs once per account. */
+  const compared = persistent<string[]>('blacklist:compared', [])
   const rules = computed(() => compile(text.value))
   // Results per post object, dropped whenever the rules change.
   let memo = new WeakMap<Post, string | null>()
@@ -140,5 +155,5 @@ export const useBlacklist = defineStore('blacklist', () => {
       .join('\n')
   }
 
-  return { text, enabled, rules, match, reveal, addLine, removeLine, revealed }
+  return { text, enabled, rules, match, reveal, addLine, removeLine, revealed, conflict, compared }
 })

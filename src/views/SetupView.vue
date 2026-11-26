@@ -6,7 +6,8 @@ import PawMark from '@/components/PawMark.vue'
 import { probeSite, verifyAccount } from '@/api/endpoints'
 import { normalizeSiteUrl } from '@/api/client'
 import { isSfwSite, SFW_HOST, siteNameFromUrl, useSites } from '@/stores/sites'
-import { useBlacklist } from '@/stores/blacklist'
+import { compareWithAccount } from '@/services/blacklistSync'
+import type { UserInfo } from '@/api/types'
 import { checkRelay } from '@/services/transfer'
 import AgeCheck from '@/components/AgeCheck.vue'
 import { openOut } from '@/services/openOut'
@@ -14,7 +15,6 @@ import { openOut } from '@/services/openOut'
 const route = useRoute()
 const router = useRouter()
 const sites = useSites()
-const blacklist = useBlacklist()
 
 /* The site: e621 (picked to start with) or e926 in one tap, or Custom, which swaps the three choices
    for an address field (with a back arrow to the choices). The address typed there is kept while
@@ -168,17 +168,18 @@ async function connect(): Promise<boolean> {
     const r = await probeSite(u)
     steps.value[0] = { label: `Reaching the site · ${r.ms} ms`, state: 'done' }
     let i = 1
-    let blacklistText: string | null = null
+    let account: UserInfo | null = null
     if (withAccount.value && username.value) {
       steps.value[i].state = 'now'
       const user = await verifyAccount(u, username.value.trim(), apiKey.value.trim())
       steps.value[i] = { label: `Checking the account · ${user?.name ?? username.value}${user?.level ? ' · ' + user.level : ''}`, state: 'done' }
-      blacklistText = user?.blacklistedTags ?? null
+      account = user
       i++
     }
     steps.value[i].state = 'now'
     sites.add({ url: u, name: siteNameFromUrl(u), username: withAccount.value ? username.value : '', apiKey: withAccount.value ? apiKey.value : '' })
-    if (blacklistText && !blacklist.text.trim()) blacklist.text = blacklistText
+    // The account's blacklist: copied when pawbs has none, else compared (services/blacklistSync).
+    if (account) void compareWithAccount({ force: true, known: { userId: account.id, text: account.blacklistedTags ?? '' } })
     steps.value[i].state = 'done'
     await openOut(boxEl.value)
     void router.replace('/')
