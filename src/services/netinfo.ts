@@ -69,6 +69,34 @@ export function lookahead(mode: PreloadMode): Lookahead {
   return l
 }
 
+/** How far ahead a list of results loads while scrolling, in screens below the one in view. */
+export interface GridAhead {
+  /** Thumbnails fetched and decoded ahead, once the screen in view has loaded. */
+  thumbs: number
+  /** The next page of results is asked for while its end is closer than this. */
+  results: number
+}
+
+const GRID: Record<PreloadMode, GridAhead> = {
+  off: { thumbs: 0, results: 0 },
+  light: { thumbs: 1, results: 2 },
+  balanced: { thumbs: 3, results: 4 },
+  aggressive: { thumbs: 6, results: 8 },
+}
+
+export function gridAhead(mode: PreloadMode): GridAhead {
+  const g = { ...GRID[mode] }
+  if (mode === 'off') return g
+  const c = connection()
+  const t = c?.effectiveType
+  if (t === 'slow-2g' || t === '2g') return { ...GRID.off }
+  if (c?.saveData) return { thumbs: 0, results: Math.min(g.results, 2) }
+  if (t === '3g') return { thumbs: Math.min(g.thumbs, 1), results: Math.min(g.results, 2) }
+  const m = medianLoad()
+  if (m != null && m > 2500) g.thumbs = Math.min(g.thumbs, 1)
+  return g
+}
+
 export function describeConnection(): string {
   const c = connection()
   const parts: string[] = []

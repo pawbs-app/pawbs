@@ -13,13 +13,21 @@ interface Entry {
   resolve: (ok: boolean) => void
   started: number
   used: number
+  /** Its load time counts toward the measured speed (not for thumbnails: small files, quick answers). */
+  measure: boolean
+  /** Loading in one of the thumbnails' own slots. */
+  light: boolean
 }
 
 const entries = new Map<string, Entry>()
 const groups = new Map<string, Map<string, number>>()
 const MAX_ACTIVE = 4
+/** Thumbnails (entries that do not measure) load in slots of their own, so a grid loading ahead never
+    holds up the gallery's pictures, and the gallery's never hold up a grid's small files. */
+const MAX_LIGHT = 6
 const KEEP_READY = 18
 let active = 0
+let activeLight = 0
 
 /* The post on screen comes first. While it is loading, no preload starts (they would share the
    connection with it, the next video above all), and only it is fetched at high priority. The viewer
@@ -50,15 +58,16 @@ function wantedPriority(url: string): number | null {
   return best
 }
 
-function ensureEntry(url: string, priority: number): Entry {
+function ensureEntry(url: string, priority: number, measure = true): Entry {
   let e = entries.get(url)
   if (!e) {
     let resolve!: (ok: boolean) => void
     const promise = new Promise<boolean>((r) => (resolve = r))
-    e = { url, img: null, priority, state: 'queued', promise, resolve, started: 0, used: performance.now() }
+    e = { url, img: null, priority, state: 'queued', promise, resolve, started: 0, used: performance.now(), measure, light: false }
     entries.set(url, e)
   } else {
     e.priority = Math.min(e.priority, priority)
+    e.measure ||= measure
   }
   return e
 }
@@ -66,7 +75,9 @@ function ensureEntry(url: string, priority: number): Entry {
 function start(e: Entry) {
   e.state = 'loading'
   e.started = performance.now()
-  active++
+  e.light = !e.measure
+  if (e.light) activeLight++
+  else active++
   const img = new Image()
   img.decoding = 'async'
   // High for what is on screen (or asked for directly) only: the next picture is not as urgent.
@@ -74,9 +85,10 @@ function start(e: Entry) {
   e.img = img
   const finish = (ok: boolean) => {
     if (e.state !== 'loading') return
-    active--
+    if (e.light) activeLight--
+    else active--
     e.state = ok ? 'ready' : 'error'
-    if (ok) recordLoadTime(performance.now() - e.started)
+    if (ok && e.measure) recordLoadTime(performance.now() - e.started)
     e.resolve(ok)
     pump()
   }
@@ -95,7 +107,8 @@ function cancel(e: Entry) {
     e.img.onload = null
     e.img.onerror = null
     e.img.src = ''
-    active--
+    if (e.light) activeLight--
+    else active--
   }
   // Not "loading" any more: a decode already under way finishes into nothing (finish() would
   // otherwise count this load out a second time, and the limit of loads at once drifted away).
@@ -123,21 +136,22 @@ function pump() {
   }
   const queue = [...entries.values()].filter((e) => e.state === 'queued').sort((a, b) => a.priority - b.priority)
   for (const e of queue) {
-    // The most urgent load may always start; others wait for a free slot, and for the post on
-    // screen to be loaded.
-    if (e.priority > 0 && (held || active >= MAX_ACTIVE)) break
+    // The most urgent load may always start; others wait for a free slot of their kind, and for the
+    // post on screen to be loaded.
+    if (e.priority > 0 && held) break
+    if (e.priority > 0 && (e.measure ? active >= MAX_ACTIVE : activeLight >= MAX_LIGHT)) continue
     start(e)
   }
 }
 
 /** Replace what a group wants. Lower priority numbers load first (0 = on screen now). */
-export function want(group: string, list: { url: string | null | undefined; priority: number }[]) {
+export function want(group: string, list: { url: string | null | undefined; priority: number }[], opts: { measure?: boolean } = {}) {
   const m = new Map<string, number>()
   for (const { url, priority } of list) {
     if (!url) continue
     const prev = m.get(url)
     if (prev === undefined || priority < prev) m.set(url, priority)
-    ensureEntry(url, priority)
+    ensureEntry(url, priority, opts.measure ?? true)
   }
   groups.set(group, m)
   pump()

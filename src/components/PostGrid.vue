@@ -2,8 +2,9 @@
 /* Thumbnails in three layouts. Justified rows keep every picture's shape and fill the width;
    masonry stacks columns; the grid gives every post the same square. Layout is computed from the
    known sizes, so nothing jumps while images load. Off-screen rows skip rendering
-   (content-visibility), and the next page is asked for well before the end. */
-import { computed, nextTick, onActivated, onDeactivated, ref, toRef, watch } from 'vue'
+   (content-visibility), and the next page is asked for well before the end. Once the screen has
+   loaded, the thumbnails of the next screens load ahead (Settings › Preloading). */
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, toRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PostThumb from './PostThumb.vue'
 import StatePanel from './StatePanel.vue'
@@ -19,6 +20,8 @@ import { useKeyLayer } from '@/services/keyboard'
 import { openInNewTab, openMenu, type MenuEntry } from '@/services/contextMenu'
 import { usePostActions } from '@/composables/postActions'
 import { useSelection, type SelectAction } from '@/stores/selection'
+import { gridAhead } from '@/services/netinfo'
+import { release, want } from '@/services/preloader'
 
 const props = withDefaults(
   defineProps<{
@@ -45,7 +48,8 @@ const props = withDefaults(
   }>(),
   { emptyLabel: 'No posts', endNote: true, menuExtra: undefined, selectActions: undefined },
 )
-const emit = defineEmits<{ open: [Post]; more: []; retry: [] }>()
+/** more: ahead is true when the page is only wanted early (Settings › Preloading), not yet needed. */
+const emit = defineEmits<{ open: [Post]; more: [ahead: boolean]; retry: [] }>()
 
 const route = useRoute()
 const settings = useSettings()
@@ -176,28 +180,173 @@ const masonry = computed(() => {
 
 const grid = computed(() => {
   const W = width.value
-  if (!W || settings.s.layout !== 'grid') return { blocks: [] as Cell[][], cell: 0 }
+  if (!W || settings.s.layout !== 'grid') return { blocks: [] as Cell[][], cell: 0, n: 1 }
   const target = narrow.value ? Math.min(size.value, (W - 2 * GAP) / 3) : size.value
   const n = Math.max(2, Math.floor((W + GAP) / (target + GAP)))
   const cell = Math.floor((W - GAP * (n - 1)) / n)
   const cells = visible.value.map((post, i) => ({ post, w: cell, h: cell, i }))
   const at = split.value
-  return { blocks: at > 0 ? [cells.slice(0, at), cells.slice(at)] : [cells], cell }
+  return { blocks: at > 0 ? [cells.slice(0, at), cells.slice(at)] : [cells], cell, n }
 })
+
+/* ---------- loading ahead (Settings › Preloading, "While scrolling results") ----------
+   How far is counted in screens below the one in view. Until the list's first screen has loaded,
+   the next page is asked for as before (the bottom within REACH); from then on, further ahead. */
+const ahead = computed(() => gridAhead(settings.s.gridPreload))
+const viewH = ref(window.innerHeight)
+const onResize = () => (viewH.value = window.innerHeight)
+/** The list's first screen of thumbnails has loaded (or failed, or the wait ran out). */
+const firstScreen = ref(false)
 
 // Ask for more when the bottom comes within reach, and again after each page if still in reach.
 // The check measures after the new rows are laid out, so one page arriving never pulls the next.
 const REACH = 1600
-useNearViewport(sentinel, () => maybeMore(), `${REACH}px`)
-function inReach() {
+const reach = computed(() => (firstScreen.value ? Math.max(REACH, Math.round(ahead.value.results * viewH.value)) : REACH))
+useNearViewport(sentinel, () => maybeMore(), () => `${reach.value}px`)
+/** How far below the screen the end of the list is (null: not on screen at all). */
+function endBelow(): number | null {
   const el = sentinel.value
   // A page kept alive while hidden is out of the document: everything measures 0, which read as
   // "the bottom is in reach" and loaded page after page in the background.
-  if (!el?.isConnected || !width.value) return false
-  return el.getBoundingClientRect().top < window.innerHeight + REACH
+  if (!el?.isConnected || !width.value) return null
+  return el.getBoundingClientRect().top - window.innerHeight
 }
+
+/* Where each post sits, from the layout itself (measuring would lay out the rows that skip
+   rendering off screen). Top and bottom are in the grid's own coordinates. */
+const LINE_H = 40 // the line parting new posts, with its margins
+const spots = computed(() => {
+  const out: { post: Post; top: number; bottom: number }[] = []
+  let y = 0
+  if (settings.s.layout === 'justified') {
+    for (const row of justified.value) {
+      if (row.line) {
+        y += LINE_H
+        continue
+      }
+      for (const c of row.cells) out.push({ post: c.post, top: y, bottom: y + c.h })
+      y += row.h + GAP
+    }
+  } else if (settings.s.layout === 'masonry') {
+    masonry.value.blocks.forEach((cols, bi) => {
+      if (bi > 0) y += LINE_H
+      let tallest = 0
+      for (const col of cols) {
+        let cy = y
+        for (const c of col) {
+          out.push({ post: c.post, top: cy, bottom: cy + c.h })
+          cy += c.h + GAP
+        }
+        tallest = Math.max(tallest, cy - y)
+      }
+      y += tallest
+    })
+  } else {
+    const { blocks, cell, n } = grid.value
+    blocks.forEach((cells, bi) => {
+      if (bi > 0) y += LINE_H
+      cells.forEach((c, k) => {
+        const top = y + Math.floor(k / n) * (cell + GAP)
+        out.push({ post: c.post, top, bottom: top + cell })
+      })
+      y += Math.ceil(cells.length / n) * (cell + GAP)
+    })
+  }
+  return out
+})
+
+/** The picture a thumbnail shows (none for a masked post or one without a preview). */
+const thumbUrl = (p: Post) => (blacklistedFor(p) ? null : p.previewUrl)
+
+const group = `grid:${Math.random().toString(36).slice(2)}`
+/** Posts whose thumbnail has loaded or failed for good. */
+const settled = new Set<number>()
+const SETTLE_MAX = 3000 // a thumbnail that hangs holds the rest back no longer than this
+let waitSince = 0
+let aheadTimer: number | null = null
+/** What was asked for ahead last time: it keeps loading while a new screen settles. */
+let lastAhead: { url: string; bottom: number }[] = []
+function scheduleAhead(delay = 120) {
+  if (aheadTimer == null) aheadTimer = window.setTimeout(loadAhead, delay)
+}
+function onSettled(p: Post) {
+  settled.add(p.id)
+  scheduleAhead(40)
+}
+function stopAhead() {
+  if (aheadTimer != null) clearTimeout(aheadTimer)
+  aheadTimer = null
+  waitSince = 0
+  lastAhead = []
+  release(group)
+}
+/* Priorities: the gallery's run below 9. Then the thumbnails on screen not loaded yet (the page's own
+   <img> asks for the same file; this keeps it coming whatever the browser's lazy loading decides),
+   then the ones ahead, nearest first. */
+function loadAhead() {
+  aheadTimer = null
+  const el = root.value
+  if (!shown || !el?.isConnected || !width.value) return stopAhead()
+  if (!ahead.value.thumbs && !ahead.value.results) {
+    firstScreen.value = true // Off: the next page as before, nothing ahead
+    lastAhead = []
+    return release(group)
+  }
+  const vh = window.innerHeight
+  const top = -el.getBoundingClientRect().top // the top of the screen, in the grid's coordinates
+  const bottom = top + vh
+  const list = spots.value
+  const onScreen = list
+    .filter((s) => s.bottom > top && s.top < bottom && !settled.has(s.post.id))
+    .map((s) => thumbUrl(s.post))
+    .filter((u): u is string => !!u)
+  const asked = (urls: string[], from: number) => urls.map((url, k) => ({ url, priority: from + k / 1000 }))
+  // The screen first: until its thumbnails have loaded, nothing new is asked for ahead (what was
+  // asked before and is still below keeps loading).
+  if (onScreen.length) {
+    const now = performance.now()
+    if (!waitSince) waitSince = now
+    if (now - waitSince < SETTLE_MAX) {
+      lastAhead = lastAhead.filter((a) => a.bottom > bottom)
+      want(group, [...asked(onScreen, 9), ...asked(lastAhead.map((a) => a.url), 10)], { measure: false })
+      scheduleAhead(SETTLE_MAX - (now - waitSince) + 20)
+      return
+    }
+  }
+  waitSince = 0
+  firstScreen.value = true
+  const end = bottom + ahead.value.thumbs * vh
+  lastAhead = list
+    .filter((s) => s.bottom > bottom && s.top < end && !settled.has(s.post.id))
+    .sort((a, b) => a.top - b.top)
+    .map((s) => ({ url: thumbUrl(s.post) ?? '', bottom: s.bottom }))
+    .filter((a) => a.url)
+  want(group, [...asked(onScreen, 9), ...asked(lastAhead.map((a) => a.url), 10)], { measure: false })
+}
+const onScroll = () => scheduleAhead()
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', onResize, { passive: true })
+  scheduleAhead()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', onScroll)
+  window.removeEventListener('resize', onResize)
+  stopAhead()
+})
+watch([spots, ahead, viewH], () => scheduleAhead())
+watch(
+  () => [props.posts.length, props.posts[0]?.id] as const,
+  ([n, first], [was, wasFirst]) => {
+    // Another list, or this one reloaded: its first screen loads before anything ahead again.
+    if (n < was || (wasFirst !== undefined && first !== wasFirst)) firstScreen.value = false
+  },
+)
 function maybeMore() {
-  if (!props.loading && !props.done && !props.error && !stalled.value && inReach()) emit('more')
+  if (props.loading || props.done || props.error || stalled.value) return
+  const below = endBelow()
+  // Within REACH the page is needed soon; further down it is only loaded early.
+  if (below != null && below < reach.value) emit('more', below >= REACH)
 }
 
 /* Pages that bring nothing to show (all blacklisted, not interested, or without a file for guests)
@@ -223,12 +372,15 @@ watch(
 const stalled = computed(() => blankRun.value >= BLANK_PAGES && !props.done && !props.error)
 function keepLooking() {
   blankRun.value = 0
-  if (!props.loading) emit('more')
+  if (!props.loading) emit('more', false)
 }
 /* The connection is back: a page that failed without one is asked for again, with no press on
    Retry. Only by the grid on screen (a kept page shows its Retry when it returns). */
 let shown = true
-onDeactivated(() => (shown = false))
+onDeactivated(() => {
+  shown = false
+  stopAhead()
+})
 watch(
   () => useUi().online,
   (online, was) => {
@@ -241,6 +393,7 @@ onActivated(() => {
   shown = true
   cancelAnimationFrame(pending)
   pending = requestAnimationFrame(() => (pending = requestAnimationFrame(maybeMore)))
+  scheduleAhead()
 })
 watch(
   () => [props.posts.length, props.loading, width.value],
@@ -359,6 +512,7 @@ function open(p: Post) {
           :eager="c.i < EAGER"
           :hover-preload="settings.s.hoverPreload"
           @open="open(c.post)"
+          @settled="onSettled(c.post)"
           @contextmenu="onThumbMenu($event, c.post)"
           :selecting="selecting"
           :selected="selecting && sel.has(c.post.id)"
@@ -391,6 +545,7 @@ function open(p: Post) {
           :eager="c.i < EAGER"
           :hover-preload="settings.s.hoverPreload"
           @open="open(c.post)"
+          @settled="onSettled(c.post)"
           @contextmenu="onThumbMenu($event, c.post)"
           :selecting="selecting"
           :selected="selecting && sel.has(c.post.id)"
@@ -423,6 +578,7 @@ function open(p: Post) {
         :eager="c.i < EAGER"
         :hover-preload="settings.s.hoverPreload"
         @open="open(c.post)"
+          @settled="onSettled(c.post)"
           @contextmenu="onThumbMenu($event, c.post)"
           :selecting="selecting"
           :selected="selecting && sel.has(c.post.id)"

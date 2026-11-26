@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import Icon from './Icon.vue'
 import type { Post } from '@/api/types'
 import { formatCount, formatDuration } from '@/utils/format'
-import { hint, unhint } from '@/services/preloader'
+import { hint, isReady, unhint } from '@/services/preloader'
 import { previewVideo } from '@/services/media'
 import { useSettings } from '@/stores/settings'
 
@@ -24,15 +24,27 @@ const props = defineProps<{
   selecting?: boolean
   selected?: boolean
 }>()
-const emit = defineEmits<{ open: []; reveal: []; select: [how: 'toggle' | 'range'] }>()
+/** settled: the picture has loaded, or failed for good (PostGrid waits for the screen to settle). */
+const emit = defineEmits<{ open: []; reveal: []; select: [how: 'toggle' | 'range']; settled: [] }>()
 
 const failed = ref(0)
 const loaded = ref(false)
+/** Preloaded ahead (PostGrid): it shows at once, without the fade. */
+const instant = ref(false)
 const src = computed(() => {
   if (failed.value === 0) return props.post.previewUrl
   if (failed.value === 1 && props.post.previewAltUrl) return props.post.previewAltUrl
   return null
 })
+function onLoad() {
+  if (!loaded.value && isReady(src.value)) instant.value = true
+  loaded.value = true
+  emit('settled')
+}
+function onError() {
+  failed.value++
+  if (!src.value) emit('settled')
+}
 const kindLabel = computed(() => {
   const p = props.post
   if (p.kind === 'video' && scrub.value && p.duration) return `${formatDuration(scrub.value.at * p.duration)} / ${formatDuration(p.duration)}`
@@ -138,7 +150,7 @@ onBeforeUnmount(stopScrub)
 <template>
   <a
     class="thumb"
-    :class="{ 'is-masked': !!blacklisted, 'is-loaded': loaded, 'is-saved': saved, 'is-selecting': selecting, 'is-selected': selected, 'is-scrubbing': !!scrub }"
+    :class="{ 'is-masked': !!blacklisted, 'is-loaded': loaded, 'is-instant': instant, 'is-saved': saved, 'is-selecting': selecting, 'is-selected': selected, 'is-scrubbing': !!scrub }"
     :href="href"
     :style="{ width: w + 'px', height: h + 'px' }"
     :data-id="post.id"
@@ -161,8 +173,8 @@ onBeforeUnmount(stopScrub)
         :alt="`Post ${post.id}${fresh ? ', new' : ''}`"
         :style="{ objectFit: fit ?? 'cover' }"
         draggable="false"
-        @load="loaded = true"
-        @error="failed++"
+        @load="onLoad"
+        @error="onError"
       />
       <span v-else class="missing">{{ post.deleted ? 'Deleted' : post.kind === 'flash' ? 'Flash' : 'No preview' }} // #{{ post.id }}</span>
       <video
@@ -393,6 +405,9 @@ onBeforeUnmount(stopScrub)
   transition:
     opacity 0.2s,
     transform 0.12s;
+}
+.thumb.is-instant img {
+  transition: transform 0.12s;
 }
 .is-selected img {
   transform: scale(0.9);

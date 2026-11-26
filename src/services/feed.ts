@@ -5,14 +5,16 @@ import { ref, shallowRef, watch, type Ref, type ShallowRef } from 'vue'
 import type { Post } from '@/api/types'
 import { searchPosts } from '@/api/endpoints'
 import { hasOrder, tokenize, withDefaultFilter } from '@/query/syntax'
-import { rememberMediaHost } from '@/api/client'
+import { Priority, rememberMediaHost } from '@/api/client'
 
 export interface LoadResult {
   posts: Post[]
   done?: boolean
 }
 
-export type Loader = (ctx: { page: number; lastId: number | null; signal: AbortSignal; first: boolean }) => Promise<LoadResult>
+/** priority: Background for a page asked for ahead of need (Settings › Preloading), so the person's
+    own requests pass it in the client's queue; User otherwise. */
+export type Loader = (ctx: { page: number; lastId: number | null; signal: AbortSignal; first: boolean; priority: Priority }) => Promise<LoadResult>
 
 export interface Feed {
   key: string
@@ -23,7 +25,8 @@ export interface Feed {
   error: Ref<string | null>
   /** When the first page arrived. */
   loadedAt: Ref<number>
-  loadMore: () => Promise<void>
+  /** ahead: the page is not needed yet, only loaded early (see Loader). */
+  loadMore: (ahead?: boolean) => Promise<void>
   reload: () => Promise<void>
   /** Add posts in front (new uploads since loading). */
   prepend: (posts: Post[]) => void
@@ -34,6 +37,10 @@ export interface Feed {
       against it rather than against what is loaded so far. */
   total?: number
 }
+
+/** A page asked for ahead leaves at least this long after the list's previous one: the pace the sites
+    ask clients to keep up for long (one request a second; their hard limit, two, is the client's). */
+const AHEAD_GAP_MS = 1000
 
 export function createFeed(key: string, title: string, loader: Loader): Feed {
   const posts = shallowRef<Post[]>([])
@@ -47,8 +54,9 @@ export function createFeed(key: string, title: string, loader: Loader): Feed {
   /** Bumped by abort(): a load from before it neither writes its result nor ends the next load. */
   let gen = 0
   const ids = new Set<number>()
+  let lastStart = -Infinity
 
-  async function loadMore(): Promise<void> {
+  async function loadMore(ahead = false): Promise<void> {
     if (done.value) return
     if (current) return current
     loading.value = true
@@ -59,7 +67,14 @@ export function createFeed(key: string, title: string, loader: Loader): Feed {
     const lastId = posts.value.length ? posts.value[posts.value.length - 1].id : null
     current = (async () => {
       try {
-        const r = await loader({ page, lastId, signal: my.signal, first })
+        const early = ahead && !first
+        const gap = lastStart + AHEAD_GAP_MS - performance.now()
+        if (early && gap > 0) {
+          await new Promise((r) => setTimeout(r, gap))
+          if (g !== gen) return
+        }
+        lastStart = performance.now()
+        const r = await loader({ page, lastId, signal: my.signal, first, priority: early ? Priority.Background : Priority.User })
         if (g !== gen) return // aborted (a reload) meanwhile: its result belongs to nothing now
         const fresh = r.posts.filter((p) => (ids.has(p.id) ? false : (ids.add(p.id), true)))
         if (fresh.length) {
@@ -138,14 +153,14 @@ export function searchFeed(query: string, opts: SearchOptions): Feed {
   const full = effectiveQuery(query, opts)
   const order = hasOrder(full)
   const cursorMode = !order || order === 'id' || order === 'id_desc'
-  return createFeed(`search:${full}`, query, async ({ page, lastId, signal, first }) => {
+  return createFeed(`search:${full}`, query, async ({ page, lastId, signal, first, priority }) => {
     if (cursorMode) {
       // A small first page paints sooner; later pages are larger to need fewer requests.
       const limit = first ? Math.min(FIRST_PAGE, opts.pageSize) : Math.max(opts.pageSize, 75)
-      const posts = await searchPosts(full, { limit, page: lastId ? `b${lastId}` : undefined, signal })
+      const posts = await searchPosts(full, { limit, page: lastId ? `b${lastId}` : undefined, signal, priority })
       return { posts, done: posts.length < limit }
     }
-    const posts = await searchPosts(full, { limit: opts.pageSize, page, signal })
+    const posts = await searchPosts(full, { limit: opts.pageSize, page, signal, priority })
     return { posts, done: posts.length < opts.pageSize || page >= MAX_PAGE_NUMBER }
   })
 }

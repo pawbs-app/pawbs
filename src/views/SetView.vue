@@ -229,7 +229,7 @@ useRefresh(() => feed.value?.reload())
         :select-actions="selectActions"
         empty-label="Empty set"
         @open="nav.openPost"
-        @more="feed.loadMore()"
+        @more="feed.loadMore($event)"
         @retry="feed.loadMore()"
       />
       <BulkSaveDialog v-if="bulk && feed" :posts="feed.posts.value" :title="set.name" @close="bulk = false" />

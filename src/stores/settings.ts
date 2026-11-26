@@ -53,6 +53,8 @@ export interface Settings {
   zoomMode: 'fit' | 'width' | 'actual'
   // preloading
   preloadMode: PreloadMode
+  /** How far ahead result lists load while scrolling: thumbnails of the next screens, the next pages. */
+  gridPreload: PreloadMode
   // saving
   filenamePattern: string
   syncRemoteFavorites: boolean
@@ -93,6 +95,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showNotes: true,
   zoomMode: 'fit',
   preloadMode: 'balanced',
+  gridPreload: 'balanced',
   filenamePattern: '{id}-{artist}.{ext}',
   syncRemoteFavorites: true,
   sendAccountAlways: false,

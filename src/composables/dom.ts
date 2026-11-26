@@ -64,20 +64,26 @@ export function useIdle(delay: Ref<number>, target: Ref<HTMLElement | null>) {
   return { idle, poke }
 }
 
-/** Run when the element scrolls into view (with a margin ahead). */
-export function useNearViewport(el: Ref<HTMLElement | null>, fn: () => void, margin = '1200px') {
+/** Run when the element scrolls into view (with a margin ahead, which may change). */
+export function useNearViewport(el: Ref<HTMLElement | null>, fn: () => void, margin: string | (() => string) = '1200px') {
   let io: IntersectionObserver | null = null
   const visible = ref(false)
-  onMounted(() => {
+  const marginNow = () => (typeof margin === 'function' ? margin() : margin)
+  function observe() {
+    io?.disconnect()
+    const m = marginNow()
     io = new IntersectionObserver(
       (entries) => {
         visible.value = entries.some((e) => e.isIntersecting)
         if (visible.value) fn()
       },
-      { rootMargin: `${margin} 0px ${margin} 0px` },
+      { rootMargin: `${m} 0px ${m} 0px` },
     )
     if (el.value) io.observe(el.value)
-  })
+  }
+  onMounted(observe)
+  // A new margin: observe again (the first report says at once whether the element is now in reach).
+  if (typeof margin === 'function') watch(margin, () => io && observe())
   watch(el, (n, o) => {
     if (o) io?.unobserve(o)
     if (n) io?.observe(n)

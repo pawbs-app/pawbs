@@ -105,7 +105,7 @@ useRefresh(() => void again.value++)
       :end-note="false"
       empty-label="Nothing similar"
       @open="nav.openPost"
-      @more="feed.loadMore()"
+      @more="feed.loadMore($event)"
       @retry="feed.loadMore()"
     />
   </div>

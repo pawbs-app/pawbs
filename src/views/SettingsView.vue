@@ -220,6 +220,12 @@ const preloadModes: { key: PreloadMode; title: string; text: string }[] = [
   { key: 'balanced', title: 'Balanced', text: 'Three ahead, one behind, the next video’s start · instant stepping on most connections' },
   { key: 'aggressive', title: 'Aggressive', text: 'Six ahead, two behind · instant even when stepping fast · most data' },
 ]
+const gridPreloadModes: { key: PreloadMode; title: string; text: string }[] = [
+  { key: 'off', title: 'Off', text: 'Thumbnails load as they come near, the next results when the end is close · least data' },
+  { key: 'light', title: 'Light', text: 'The next screen of thumbnails · little extra data' },
+  { key: 'balanced', title: 'Balanced', text: 'Three screens of thumbnails ahead, results about a page ahead · smooth at a normal pace' },
+  { key: 'aggressive', title: 'Aggressive', text: 'Six screens ahead, results about two pages ahead · uninterrupted even when scrolling fast · most data' },
+]
 
 // ---------- blacklist ----------
 const blacklistRules = computed(() => blacklist.rules.length)
@@ -660,11 +666,22 @@ void DEFAULT_SETTINGS
       <!-- Preloading -->
       <template v-else-if="section === 'preloading'">
         <section class="block">
-          <h2 class="rv-heading rv-label">Preloading</h2>
+          <h2 class="rv-heading rv-label">In the gallery</h2>
           <p class="rv-hint">While you look at a post, the next ones are fetched and decoded so stepping is instant. The direction you browse in gets the lead; data saver and slow connections scale it down, and so do slow answers measured on the way.</p>
           <div class="cards">
             <label v-for="m in preloadModes" :key="m.key" class="rv-card" :class="{ 'is-on': S.preloadMode === m.key }">
               <input v-model="S.preloadMode" class="sr-only" type="radio" name="preload" :value="m.key" />
+              <strong>{{ m.title }}</strong>
+              <span>{{ m.text }}</span>
+            </label>
+          </div>
+        </section>
+        <section class="block">
+          <h2 class="rv-heading rv-label">While scrolling results</h2>
+          <p class="rv-hint">Once the thumbnails on screen have loaded, the ones of the next screens are fetched and decoded, and the next results asked for early, so they are there when you scroll down. The gallery’s preloading goes first; data saver and slow connections scale this down too.</p>
+          <div class="cards">
+            <label v-for="m in gridPreloadModes" :key="m.key" class="rv-card" :class="{ 'is-on': S.gridPreload === m.key }">
+              <input v-model="S.gridPreload" class="sr-only" type="radio" name="grid-preload" :value="m.key" />
               <strong>{{ m.title }}</strong>
               <span>{{ m.text }}</span>
             </label>

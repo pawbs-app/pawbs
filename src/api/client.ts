@@ -57,7 +57,10 @@ interface Job {
   drop: () => void
 }
 
-/** Token bucket: about two requests a second, with a small burst. */
+/* Token bucket: about two requests a second, with a small burst. On top of it, never more than two
+   requests start within any second: the sites' hard limit (the burst alone let three through at
+   once). */
+const PER_SECOND = 2
 class Scheduler {
   private queue: Job[] = []
   private tokens = 3
@@ -65,9 +68,13 @@ class Scheduler {
   private readonly ratePerMs = 2 / 1000
   private last = performance.now()
   private timer: number | null = null
+  /** When the timer fires. */
+  private due = 0
   private seq = 0
   private active = 0
   private readonly maxActive = 4
+  /** When the requests of the last second started. */
+  private starts: number[] = []
 
   schedule(priority: number, run: () => Promise<void>, signal: AbortSignal | undefined, drop: () => void): void {
     const job: Job = {
@@ -116,9 +123,16 @@ class Scheduler {
     })
     while (this.queue.length && this.active < this.maxActive) {
       this.refill()
-      if (this.tokens < 1) {
-        if (this.timer == null) {
-          const wait = Math.ceil((1 - this.tokens) / this.ratePerMs)
+      const now = performance.now()
+      this.starts = this.starts.filter((t) => now - t < 1000)
+      let wait = 0
+      if (this.tokens < 1) wait = Math.ceil((1 - this.tokens) / this.ratePerMs)
+      if (this.starts.length >= PER_SECOND) wait = Math.max(wait, Math.ceil(this.starts[0] + 1000 - now))
+      if (wait > 0) {
+        // A sooner turn (the second's oldest start expiring before the bucket refills) moves the timer up.
+        if (this.timer == null || now + wait < this.due) {
+          if (this.timer != null) clearTimeout(this.timer)
+          this.due = now + wait
           this.timer = window.setTimeout(() => {
             this.timer = null
             this.pump()
@@ -127,6 +141,7 @@ class Scheduler {
         return
       }
       this.tokens -= 1
+      this.starts.push(now)
       const job = this.queue.shift()!
       job.run()
     }

@@ -44,10 +44,10 @@ const CHUNK = 100
 
 /* Posts in the pool's own order: ids are fetched in chunks and sorted to match. */
 function poolFeed(p: Pool, blockFlash: boolean): Feed {
-  const f = createFeed(`pool:${p.id}`, p.name, async ({ page, signal }) => {
+  const f = createFeed(`pool:${p.id}`, p.name, async ({ page, signal, priority }) => {
     const ids = p.postIds.slice((page - 1) * CHUNK, page * CHUNK)
     if (!ids.length) return { posts: [], done: true }
-    const posts = await searchPosts(`id:${ids.join(',')} status:any`, { limit: CHUNK, signal })
+    const posts = await searchPosts(`id:${ids.join(',')} status:any`, { limit: CHUNK, signal, priority })
     const at = new Map(ids.map((id, i) => [id, i]))
     posts.sort((a, b) => (at.get(a.id) ?? 0) - (at.get(b.id) ?? 0))
     return { posts: withoutFlash(posts, blockFlash), done: page * CHUNK >= p.postIds.length }
@@ -199,7 +199,7 @@ useRefresh(() => feed.value?.reload())
         :total="pool.postCount"
         @open="nav.openPost"
         @page="mark"
-        @more="feed.loadMore()"
+        @more="feed.loadMore($event)"
         @retry="feed.loadMore()"
       />
       <PostGrid
@@ -211,7 +211,7 @@ useRefresh(() => feed.value?.reload())
         :href-for="nav.hrefFor"
         empty-label="Empty pool"
         @open="nav.openPost"
-        @more="feed.loadMore()"
+        @more="feed.loadMore($event)"
         @retry="feed.loadMore()"
       />
       <BulkSaveDialog v-if="bulk && feed" :posts="feed.posts.value" :title="pool.name" @close="bulk = false" />

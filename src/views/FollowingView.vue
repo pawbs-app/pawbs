@@ -121,7 +121,7 @@ useRefresh(() => {
           :error="feed.error.value"
           :href-for="nav.hrefFor"
           @open="nav.openPost"
-          @more="feed.loadMore()"
+          @more="feed.loadMore($event)"
           @retry="feed.loadMore()"
         />
         <div v-else class="state">

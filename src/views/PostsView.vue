@@ -214,7 +214,7 @@ useRefresh(reload)
       empty-label="No posts"
       :empty-message="query ? `Nothing matches « ${quoted} ». Check the spelling, or loosen a filter in the query assistant (Q).` : 'The site returned no posts.'"
       @open="nav.openPost"
-      @more="feed.loadMore()"
+      @more="feed.loadMore($event)"
       @retry="feed.loadMore()"
     >
       <template #empty>
