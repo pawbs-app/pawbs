@@ -17,6 +17,7 @@ import { useFavorites } from '@/stores/favorites'
 import { useCollections } from '@/stores/collections'
 import { useUi } from '@/stores/ui'
 import { useHidden } from '@/stores/hidden'
+import { useBlacklist } from '@/stores/blacklist'
 import { useHistory } from '@/stores/history'
 import { useSites } from '@/stores/sites'
 import { useTagCache } from '@/stores/tagcache'
@@ -89,6 +90,7 @@ watch(
 )
 // A post marked "not interested" leaves at once (the gallery steps on first when it is the one shown).
 const notInterested = useHidden()
+const blacklist = useBlacklist()
 watch(
   () => notInterested.ids,
   async (gone) => {
@@ -110,6 +112,10 @@ const list = computed<Post[]>(() => {
 const index = computed(() => list.value.findIndex((p) => p.id === postId.value))
 const current = computed<Post | null>(() => (index.value >= 0 ? list.value[index.value] : null))
 const post = computed<Post | null>(() => (current.value ? full.value.get(current.value.id) ?? current.value : null))
+/* A post the blacklist matches, in either mode (masked in a list, or opened from a link while lists
+   hide them): covered, with the matching line and a way to show it on purpose (the same reveal as a
+   masked thumbnail's). Nothing of it loads until then: no picture, no video, no preload. */
+const blacklisted = computed(() => (post.value ? blacklist.match(post.value) : null))
 const inFeed = computed(() => order.value.some((p) => p.id === postId.value))
 const moreToLoad = computed(() => inFeed.value && !!feed.value && !feed.value.done.value)
 
@@ -328,7 +334,7 @@ function setZoom(mode: 'fit' | 'width' | 'actual') {
 }
 
 // ---------- image ----------
-const imageUrl = computed(() => (post.value ? pickImageUrl(post.value, disp.value.w, disp.value.h, S.value.imageQuality) : null))
+const imageUrl = computed(() => (post.value && !blacklisted.value ? pickImageUrl(post.value, disp.value.w, disp.value.h, S.value.imageQuality) : null))
 const mainSrc = ref<string | null>(null)
 const mainReady = ref(false)
 const mainFailed = ref(false)
@@ -392,7 +398,7 @@ function retryMain() {
 let chosen: { id: number; quality: string; list: VideoSource[] } | null = null
 const candidates = computed(() => {
   const p = post.value
-  if (p?.kind !== 'video') return []
+  if (p?.kind !== 'video' || blacklisted.value) return []
   if (chosen && chosen.id === p.id && chosen.quality === S.value.videoQuality) return chosen.list
   return videoCandidates(p, S.value.videoQuality, stageH.value)
 })
@@ -921,7 +927,7 @@ function goTo(i: number) {
 
 // After each step: scroll back to the top, warm what comes next, load more when near the end.
 watch(
-  [index, () => list.value.length, stageW, stageH, () => S.value.preloadMode, zoom],
+  [index, () => list.value.length, stageW, stageH, () => S.value.preloadMode, zoom, () => blacklist.rules, () => blacklist.revealed],
   () => {
     const i = index.value
     const l = list.value
@@ -931,11 +937,12 @@ watch(
     const behind = lastDir > 0 ? la.behind : la.ahead
     const items: { url: string | null; priority: number }[] = []
     const cur = l[i]
-    if (cur.kind !== 'video') items.push({ url: pickImageUrl(cur, displayFor(cur).w, displayFor(cur).h, S.value.imageQuality), priority: 0 })
+    if (cur.kind !== 'video' && !blacklist.match(cur)) items.push({ url: pickImageUrl(cur, displayFor(cur).w, displayFor(cur).h, S.value.imageQuality), priority: 0 })
     let nextVideo: string | null = null
     for (let k = 1; k <= ahead; k++) {
       const p = l[i + lastDir * k]
       if (!p) break
+      if (blacklist.match(p)) continue
       const d = displayFor(p)
       items.push({ url: pickImageUrl(p, d.w, d.h, S.value.imageQuality), priority: k })
       if (p.kind === 'video' && !nextVideo && k <= 2) nextVideo = videoCandidates(p, S.value.videoQuality, stageH.value)[0]?.url ?? null
@@ -943,12 +950,14 @@ watch(
     for (let k = 1; k <= behind; k++) {
       const p = l[i - lastDir * k]
       if (!p) break
+      if (blacklist.match(p)) continue
       const d = displayFor(p)
       items.push({ url: pickImageUrl(p, d.w, d.h, S.value.imageQuality), priority: k + 0.5 })
     }
     for (let k = 1; k <= la.thumbs; k++) {
       const p = l[i + lastDir * k]
       if (!p) break
+      if (blacklist.match(p)) continue
       items.push({ url: p.previewUrl, priority: 6 + k / 10 })
     }
     want('viewer', items)
@@ -956,7 +965,7 @@ watch(
     // one ahead, and the one just left (stepping back).
     // (The post on screen: the file chosen for it, which a rotation no longer changes.)
     const videoUrl = (p: Post | undefined) =>
-      p?.kind !== 'video' ? null : p.id === post.value?.id ? (candidates.value[0]?.url ?? null) : (videoCandidates(p, S.value.videoQuality, stageH.value)[0]?.url ?? null)
+      p?.kind !== 'video' || blacklist.match(p) ? null : p.id === post.value?.id ? (candidates.value[0]?.url ?? null) : (videoCandidates(p, S.value.videoQuality, stageH.value)[0]?.url ?? null)
     wantVideos([videoUrl(cur), nextVideo, videoUrl(l[i - lastDir])], la.video)
     if (moreToLoad.value && i >= l.length - 8 && !feed.value!.loading.value) void feed.value!.loadMore()
   },
@@ -1576,6 +1585,11 @@ const ghosts = computed(() => {
     const p = list.value[index.value + k]
     if (!p) continue
     const d = displayFor(p)
+    // Blacklisted: the neighbour slides in covered, as it opens.
+    if (blacklist.match(p)) {
+      out.push({ side, id: p.id, w: d.w, h: d.h, src: '' })
+      continue
+    }
     const url = p.kind === 'video' || p.kind === 'flash' ? null : pickImageUrl(p, d.w, d.h, S.value.imageQuality)
     const src = url && isReady(url) ? url : p.kind === 'video' ? p.sampleUrl ?? p.previewUrl : p.previewUrl ?? p.sampleUrl
     if (src) out.push({ side, id: p.id, w: d.w, h: d.h, src })
@@ -1857,6 +1871,16 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
       >
         <div ref="canvas" class="canvas" :style="{ minWidth: `max(100%, ${disp.w}px)`, minHeight: `max(100%, ${disp.h}px)` }">
           <div v-if="post" :key="post.id" class="media cur" :class="['k-' + post.kind, { 'is-unblurred': unblurred === post.id }]" :style="{ width: disp.w + 'px', height: disp.h + 'px' }">
+            <div v-if="blacklisted" class="nofile">
+              <div class="rv-panel rv-brackets">
+                <div class="rv-label">Blacklisted</div>
+                <p class="msg rv-selectable">{{ blacklisted }}</p>
+                <div class="row">
+                  <button class="rv-btn" type="button" @click="blacklist.reveal(post.id)"><Icon name="eye" />Show it</button>
+                </div>
+              </div>
+            </div>
+            <template v-else>
             <img v-if="post.previewUrl && post.kind !== 'video'" class="ph" :src="post.previewUrl" alt="" aria-hidden="true" draggable="false" />
 
             <template v-if="post.kind === 'video'">
@@ -1932,6 +1956,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
                 <div class="note-body dtext" v-html="renderDText(n.body, sites.origin)"></div>
               </div>
             </div>
+            </template>
           </div>
 
           <div v-else-if="loadError" class="nofile">
@@ -1949,7 +1974,10 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
           </div>
 
           <div v-for="g in ghosts" :key="g.id" class="ghost" :class="g.side" :style="{ top: ghostTop + 'px', height: stageH + 'px' }" aria-hidden="true">
-            <div class="media" :style="{ width: g.w + 'px', height: g.h + 'px' }"><img :src="g.src" alt="" draggable="false" /></div>
+            <div class="media" :style="{ width: g.w + 'px', height: g.h + 'px' }">
+              <img v-if="g.src" :src="g.src" alt="" draggable="false" />
+              <div v-else class="nofile"><div class="rv-panel rv-brackets"><div class="rv-label">Blacklisted</div></div></div>
+            </div>
           </div>
         </div>
 
