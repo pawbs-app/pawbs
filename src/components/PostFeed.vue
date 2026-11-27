@@ -123,8 +123,10 @@ function syncPlay() {
     if (shown && !galleryOpen.value && p && id === p.id) {
       live = v
       v.muted = !settings.s.feedSound
-      v.play().catch(() => {
-        // Sound refused before any touch on the page: muted, then.
+      v.play().catch((e: Error) => {
+        // Sound refused before any touch on the page: muted, then. (Not when the start was cut short
+        // by a pause: the feed has moved on, and the video must stay paused.)
+        if (e.name !== 'NotAllowedError' || props.posts[cur.value]?.id !== id || !shown || galleryOpen.value) return
         v.muted = true
         v.play().catch(() => {})
       })
@@ -216,15 +218,27 @@ async function share(p: Post) {
 
 // ---------- the page around it ----------
 /* Snapping: one card per screen, the page's scroll stopping at each (html.feed-snap, below). The room
-   the title bar and the tab bar take is left out of the screen's height. A point at the very top of
-   the page snaps too, so the page's own header (its title, Follow, the ⋯ with the layouts) stays in
-   reach above the first card. */
+   the title bar and the tab bar take is left out of the screen's height. The very top of the page is
+   a stop too, so the page's own header (its title, Follow, the ⋯ with the layouts) stays in reach;
+   the first card shares that screen with it, shorter by the header's height (firstH). As a stop of
+   its own, a few rows below the top, it was passed by the finger itself on a swipe from the header,
+   and the page went on to the second post. A header taller than about a third of the screen leaves
+   the first card its full height and its own stop. */
 const topOffset = ref(0)
+const firstH = ref<number | null>(null)
 function measure() {
   viewH.value = window.innerHeight
   const el = root.value
-  if (el?.isConnected) topOffset.value = Math.round(el.getBoundingClientRect().top + window.scrollY)
+  if (!el?.isConnected) return
+  topOffset.value = Math.round(el.getBoundingClientRect().top + window.scrollY)
+  const tab = document.querySelector<HTMLElement>('.tabbar')
+  const tabH = tab && getComputedStyle(tab).display !== 'none' ? tab.getBoundingClientRect().height : 0
+  const barH = document.querySelector<HTMLElement>('.tbar')?.getBoundingClientRect().height ?? 0
+  const first = Math.floor(viewH.value - tabH - topOffset.value)
+  firstH.value = first >= (viewH.value - barH - tabH) * 0.62 ? first : null
 }
+// What sits above the feed can change height (the refine chips, a notice): measured again then.
+let bodyRo: ResizeObserver | null = null
 /* Counted, not switched: a page kept alive while another feed takes the screen may say goodbye after
    the new one said hello. */
 let snapping = false
@@ -236,6 +250,8 @@ function snap(on: boolean) {
 }
 onMounted(() => {
   measure()
+  bodyRo = new ResizeObserver(() => measure())
+  bodyRo.observe(document.body)
   observe()
   snap(true)
   window.addEventListener('resize', measure, { passive: true })
@@ -256,6 +272,7 @@ onBeforeUnmount(() => {
   shown = false
   snap(false)
   io?.disconnect()
+  bodyRo?.disconnect()
   window.removeEventListener('resize', measure)
   for (const v of vids.values()) v.pause()
   if (ownsMedia) clearMedia()
@@ -276,7 +293,16 @@ watch(
 <template>
   <div ref="root" class="feed" :class="'hand-' + settings.s.hand">
     <span class="top-snap" :style="{ top: -topOffset + 'px' }" aria-hidden="true"></span>
-    <article v-for="(p, i) in posts" :key="p.id" class="card" :data-i="i" :data-id="p.id" :aria-label="`Post ${p.id}`">
+    <article
+      v-for="(p, i) in posts"
+      :key="p.id"
+      class="card"
+      :class="{ shared: i === 0 && firstH }"
+      :style="i === 0 && firstH ? { height: firstH + 'px' } : undefined"
+      :data-i="i"
+      :data-id="p.id"
+      :aria-label="`Post ${p.id}`"
+    >
       <a class="media" :href="hrefFor(p)" draggable="false" :aria-label="`Post ${p.id}: open in the gallery`" @click.prevent="onTap($event, p)" @contextmenu="emit('menu', $event, p)">
         <div v-if="blacklistedFor(p)" class="masked rv-panel rv-brackets">
           <div class="rv-label">Blacklisted</div>
@@ -366,6 +392,10 @@ watch(
   overflow: hidden;
   content-visibility: auto;
   contain-intrinsic-size: auto 600px;
+}
+/* The first card on the header's screen: that screen's stop is the page's top. */
+.card.shared {
+  scroll-snap-align: none;
 }
 .media {
   position: absolute;
