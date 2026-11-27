@@ -3,6 +3,7 @@ import { vDecode } from '@/directives/decode'
 import { computed, onActivated, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRefresh } from '@/services/refresh'
+import { siteHealth } from '@/services/siteHealth'
 import PostGrid from '@/components/PostGrid.vue'
 import PageMore from '@/components/PageMore.vue'
 import GridTools from '@/components/GridTools.vue'
@@ -40,7 +41,10 @@ const streamParts = computed(() => {
   const chunks: string[][] = [[]]
   let left = 0
   // Synced with the account: every synced tag in one term (services/followSync), up to 500 of them.
-  const synced = new Set(follows.sync.on && sites.hasAccount ? follows.shown.filter((f) => f.synced && !f.removedOnAccount) : [])
+  // Not while the site refuses the account's key (an expired or deleted one): that term then finds
+  // nothing, and the synced tags are searched as tags, like the others.
+  const keyRefused = siteHealth.kind === 'auth' && siteHealth.site === sites.active?.url
+  const synced = new Set(follows.sync.on && sites.hasAccount && !keyRefused ? follows.shown.filter((f) => f.synced && !f.removedOnAccount) : [])
   if (synced.size) chunks[0].push('~search:subscriptions')
   for (const f of follows.shown) {
     if (synced.has(f)) continue
