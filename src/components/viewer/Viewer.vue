@@ -279,8 +279,9 @@ function fitScaleOf(p: Post) {
   const { w, h } = dimsOf(p)
   return Math.min(Math.max(1, stageW.value) / w, Math.max(1, stageH.value) / h, 4)
 }
-/* Free zoom (mouse wheel, + / -) for the post on screen: a scale of its own, from the fitted size up
-   to 8×. Null means the chosen zoom mode applies. Cleared when stepping to another post. */
+/* Free zoom (mouse wheel, + / -, pinch) for the post on screen, a picture or a video: a scale of its
+   own, from the fitted size up to 8×. Null means the chosen zoom mode applies (a video: fitted).
+   Cleared when stepping to another post. */
 const freeScale = ref<number | null>(null)
 const MAX_FREE_SCALE = 8
 /* And never a picture laid out past this many CSS pixels on its long side (8× of a large picture is
@@ -295,9 +296,10 @@ function displayFor(p: Post) {
   const { w, h } = dimsOf(p)
   const W = Math.max(1, stageW.value)
   let s = 1
-  if (p.kind === 'video' || p.kind === 'flash') s = fitScaleOf(p)
+  if (p.kind === 'flash') s = fitScaleOf(p)
   else if (freeScale.value !== null && p === post.value) s = freeScale.value
-  else if (zoom.value === 'fit') s = fitScaleOf(p)
+  // (A video opens fitted, whatever the zoom chosen for pictures; it zooms freely as they do.)
+  else if (p.kind === 'video' || zoom.value === 'fit') s = fitScaleOf(p)
   else if (zoom.value === 'width') s = Math.min(W / w, 4)
   return { w: Math.max(1, Math.round(w * s)), h: Math.max(1, Math.round(h * s)), scale: s }
 }
@@ -305,7 +307,7 @@ const disp = computed(() => (post.value ? displayFor(post.value) : { w: 1, h: 1,
 // (Where the picture lies after a step to another post or a change of zoom: what the next glide,
 // see layPicture(), starts from.)
 watch([() => post.value?.id, disp], () => layPicture(), { flush: 'post' })
-const scrollable = computed(() => post.value?.kind !== 'video' && (disp.value.w > stageW.value + 1 || disp.value.h > stageH.value + 1))
+const scrollable = computed(() => (post.value?.kind !== 'video' || freeScale.value !== null) && (disp.value.w > stageW.value + 1 || disp.value.h > stageH.value + 1))
 /** Zoom relative to the fitted size, for the HUD chip (null when not free-zoomed). */
 const zoomFactor = computed(() => (freeScale.value !== null && post.value ? freeScale.value / fitScaleOf(post.value) : null))
 watch(postId, () => (freeScale.value = null))
@@ -314,7 +316,7 @@ watch(postId, () => (freeScale.value = null))
 async function zoomAt(factor: number, cx?: number, cy?: number) {
   const p = post.value
   const el = stage.value
-  if (!p || !el || p.kind === 'video' || p.kind === 'flash') return
+  if (!p || !el || p.kind === 'flash') return
   const fit = fitScaleOf(p)
   const current = disp.value.scale
   // Never below the fitted size, nor below where it stands (a small picture at 1:1 is under it).
@@ -335,9 +337,11 @@ async function zoomAt(factor: number, cx?: number, cy?: number) {
   }
 }
 function resetZoom() {
+  stopWheelZoom()
   freeScale.value = null
 }
 function setZoom(mode: 'fit' | 'width' | 'actual') {
+  stopWheelZoom()
   freeScale.value = null
   zoom.value = mode
 }
@@ -1211,7 +1215,7 @@ function onStageMenu(e: MouseEvent) {
       image && { label: 'Fit', checked: zoom.value === 'fit' && zoomFactor.value === null, hint: 'Z', run: () => setZoom('fit') },
       image && { label: 'Fit width', checked: zoom.value === 'width' && zoomFactor.value === null, run: () => setZoom('width') },
       image && { label: 'Actual size', checked: zoom.value === 'actual' && zoomFactor.value === null, run: () => setZoom('actual') },
-      image && zoomFactor.value !== null && { label: `Back from zoom ×${zoomFactor.value.toFixed(1)}`, icon: 'fit', run: resetZoom },
+      zoomFactor.value !== null && { label: `Back from zoom ×${zoomFactor.value.toFixed(1)}`, icon: 'fit', run: resetZoom },
       'sep',
       { label: 'Details', checked: panel.value, hint: 'I', run: () => (panel.value = !panel.value) },
       { label: slideshow.value ? 'Stop the slideshow' : 'Slideshow', icon: 'slideshow', checked: slideshow.value, hint: 'P', run: toggleSlideshow },
@@ -1670,8 +1674,7 @@ function doubleTap(x: number, y: number) {
     return
   }
   if (act === 'zoom') {
-    if (p.kind === 'video') togglePlay() // (nothing to zoom: it plays or pauses)
-    else if (freeScale.value !== null) resetZoom()
+    if (freeScale.value !== null) resetZoom()
     else void zoomAt(2.5, x, y)
     return
   }
@@ -1724,7 +1727,7 @@ function beginPinch() {
     s0: disp.value.scale,
     rx: box ? (mx - box.left) / box.width : 0.5,
     ry: box ? (my - box.top) / box.height : 0.5,
-    on: !!p && p.kind !== 'video' && p.kind !== 'flash' && !pageZoomed.value, // (the browser's pinch then)
+    on: !!p && p.kind !== 'flash' && !pageZoomed.value, // (the browser's pinch then)
   }
 }
 function pinchFrame() {
@@ -1854,6 +1857,42 @@ function onDblClick(e: MouseEvent) {
   const target = 1 > fit * 1.1 ? 1 : fit * 2.5
   void zoomAt(target / current, e.clientX, e.clientY)
 }
+/* The wheel's zoom glides: each notch moves a goal, and the picture eases to it over a few frames, the
+   point under the pointer staying put (each notch used to jump the whole way at once). Notches coming
+   faster than the glide add up. With reduced motion, it jumps as before. */
+let wheelGoal: { scale: number; x: number; y: number } | null = null
+let wheelRaf = 0
+const stillMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+function wheelZoom(factor: number, x: number, y: number) {
+  const p = post.value
+  if (!p) return
+  if (stillMotion) return void zoomAt(factor, x, y)
+  const cur = disp.value.scale
+  const fit = fitScaleOf(p)
+  const from = wheelGoal?.scale ?? cur
+  wheelGoal = { scale: Math.min(Math.max(maxScaleOf(p), cur), Math.max(Math.min(fit, cur), from * factor)), x, y }
+  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelStep)
+}
+async function wheelStep() {
+  wheelRaf = 0
+  const goal = wheelGoal
+  if (!goal || !post.value) return
+  const before = disp.value.scale
+  const ratio = goal.scale / before
+  // A third of the way (in scale) each frame: about 200 ms to arrive, slowing as it does.
+  const last = Math.abs(Math.log(ratio)) < 0.004
+  await zoomAt(last ? ratio : Math.pow(ratio, 0.33), goal.x, goal.y)
+  // Arrived, or held at a limit (the fitted size, the largest): done.
+  if (last || Math.abs(disp.value.scale - before) < 1e-4) wheelGoal = wheelGoal === goal ? null : wheelGoal
+  if (wheelGoal) wheelRaf = requestAnimationFrame(wheelStep)
+}
+function stopWheelZoom() {
+  wheelGoal = null
+  if (wheelRaf) cancelAnimationFrame(wheelRaf)
+  wheelRaf = 0
+}
+watch(postId, stopWheelZoom)
+
 /* The mouse wheel over the picture, as set in Settings › Gallery:
    zoom (around the pointer), step to the next / previous post, or nothing (the page scrolls a zoomed
    picture as usual). Ctrl + wheel is left to the browser. */
@@ -1863,11 +1902,11 @@ function onWheel(e: WheelEvent) {
   const action = S.value.wheelAction
   if (action === 'zoom') {
     const k = post.value?.kind
-    if (!k || k === 'video' || k === 'flash' || !e.deltaY) return
+    if (!k || k === 'flash' || !e.deltaY) return
     e.preventDefault()
     // Proportional to the wheel distance, so trackpads zoom smoothly and mouse notches by ~15%.
     const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY
-    void zoomAt(Math.exp(-Math.max(-300, Math.min(300, delta)) * 0.0014), e.clientX, e.clientY)
+    wheelZoom(Math.exp(-Math.max(-300, Math.min(300, delta)) * 0.0014), e.clientX, e.clientY)
     return
   }
   if (action === 'navigate') {
