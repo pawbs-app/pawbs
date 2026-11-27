@@ -142,7 +142,7 @@ function submitAssistant(q: string) {
 
 // Locking (encryption on: Settings › Privacy) and the cover in the app switcher (services/lock).
 refreshVaultOn()
-// (A disguise is always covered in the app switcher: its preview would show pawbs.)
+// (A disguise is always covered in the background, as far as the system lets the cover show.)
 startLock(() => ({ idle: settings.s.lockIdle, hidden: settings.s.lockHidden, cover: settings.s.coverHidden || !!disguise }))
 
 // Paste to open (utils/pasted): a post's number or link, a pool's or a search's link, pasted anywhere

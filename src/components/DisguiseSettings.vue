@@ -36,6 +36,11 @@ watch(
   { immediate: true },
 )
 
+/* The code's fields: text fields drawn as dots (.secret), not password fields, which browsers offer to
+   save in their password manager (a trace of the code, under this site's name); password manager
+   extensions are told to leave them too. */
+const noKeeping = { autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', 'data-1p-ignore': '', 'data-lpignore': 'true', 'data-bwignore': '', 'data-form-type': 'other' } as const
+
 const info = computed(() => KIND_INFO[kind.value])
 const digits = computed(() => info.value.secret === 'digits')
 const iconOf = (k: DisguiseKind) => `/as/icons/${k}-${k === kind.value ? color.value : DEFAULT_COLOR[k]}-192.png`
@@ -75,7 +80,7 @@ async function go() {
       <p class="rv-hint">This is pawbs in its {{ disguise.name }} disguise: it opens on the decoy, and here only with your code. After half a minute in the background it is the decoy again.</p>
     </template>
     <template v-else>
-      <p class="rv-hint">Install pawbs as a calculator, notes or a timer: its own name and icon on the home screen, opening on one that works. Your code opens pawbs from it, with the same data as here. It leaves nothing in the browser’s history, shows no count on its icon and stays covered in the app switcher. The phone’s app info and the browser’s site settings still show pawbs.app.</p>
+      <p class="rv-hint">Install pawbs as a calculator, notes or a timer: its own name and icon on the home screen, opening on one that works. Your code opens pawbs from it, with the same data as here. It leaves nothing in the browser’s history and shows no count on its icon, and half a minute in the background brings back the decoy. The app switcher may still show the last screen it had (the system takes that picture), and the phone’s app info and the browser’s site settings show pawbs.app.</p>
       <div class="row sp wrap">
         <button class="rv-btn rv-btn--sm" type="button" @click="open = true"><Icon name="install" />Set up a disguise…</button>
         <span v-if="codeSet" class="rv-hint">A code is set: a new one replaces it.</span>
@@ -85,7 +90,8 @@ async function go() {
 
   <Dialog v-if="open" title="Install in disguise" :dismissable="!busy" @close="open = false">
     <div class="kinds" role="radiogroup" aria-label="Disguise">
-      <button v-for="k in KINDS" :key="k" type="button" class="kind" :class="{ 'is-on': kind === k }" role="radio" :aria-checked="kind === k" @click="kind = k">
+      <!-- (Focus starts here, not in a field: a phone's keyboard would cover the dialog at once.) -->
+      <button v-for="k in KINDS" :key="k" type="button" class="kind" :class="{ 'is-on': kind === k }" role="radio" :aria-checked="kind === k" :autofocus="kind === k" @click="kind = k">
         <img :src="iconOf(k)" alt="" width="48" height="48" />
         <span>{{ KIND_INFO[k].name }}</span>
       </button>
@@ -103,11 +109,11 @@ async function go() {
       </div>
       <label class="rv-field">
         <span class="rv-label">{{ digits ? 'Code' : 'Word' }}</span>
-        <input v-model="code" class="rv-input" type="password" :inputmode="digits ? 'numeric' : 'text'" :maxlength="kind === 'timer' ? 4 : 30" autocomplete="off" spellcheck="false" />
+        <input v-model="code" class="rv-input secret" type="text" :inputmode="digits ? 'numeric' : 'text'" :maxlength="kind === 'timer' ? 4 : 30" v-bind="noKeeping" />
       </label>
       <label class="rv-field">
         <span class="rv-label">Again</span>
-        <input v-model="again" class="rv-input" type="password" :inputmode="digits ? 'numeric' : 'text'" :maxlength="kind === 'timer' ? 4 : 30" autocomplete="off" spellcheck="false" @keydown.enter="go" />
+        <input v-model="again" class="rv-input secret" type="text" :inputmode="digits ? 'numeric' : 'text'" :maxlength="kind === 'timer' ? 4 : 30" v-bind="noKeeping" @keydown.enter="go" />
       </label>
     </div>
     <p class="rv-hint sp">To open pawbs: {{ info.how }}. {{ kind === 'timer' ? 'Four digits, minutes then seconds.' : digits ? '4 to 8 digits.' : 'One word.' }} Anything else, it behaves like an ordinary one.</p>
@@ -176,5 +182,8 @@ async function go() {
 }
 .bad {
   color: var(--bad);
+}
+.secret {
+  -webkit-text-security: disc;
 }
 </style>
