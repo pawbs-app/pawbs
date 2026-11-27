@@ -38,6 +38,9 @@ export interface PageRequest {
   signal?: AbortSignal
   priority?: Priority
   ttl?: number
+  /** False: the posts are only counted or looked at by id and tags, so files the site withholds from
+      guests are not asked for again with the account (searchPosts). */
+  files?: boolean
 }
 
 /* Searches about the signed-in person's own account (favourites, votes) need the account: a private
@@ -53,21 +56,31 @@ function aboutOwnAccount(tags: string): boolean {
   return false
 }
 
+/** Sites where, in this session, a page asked without the account came back with files withheld from
+    guests (searchPosts): searches there go with the account from then on, rather than each page being
+    asked twice. */
+const withheldFromGuests = new Set<string>()
+
 export async function searchPosts(tags: string, p: PageRequest = {}): Promise<Post[]> {
+  const url = site().url
+  const files = p.files !== false
+  const signedIn = useSites().hasAccount
   const opts: RequestOptions = {
     params: { tags: tags.trim(), limit: Math.min(p.limit ?? 75, MAX_LIMIT), page: p.page },
     signal: p.signal,
     priority: p.priority ?? Priority.User,
     ttl: p.ttl ?? 30_000,
-    auth: aboutOwnAccount(tags) || undefined,
+    auth: aboutOwnAccount(tags) || (files && signedIn && withheldFromGuests.has(url)) || undefined,
   }
-  const posts = normalizePostList(await req<unknown>('/posts.json', opts), site().url)
+  const posts = normalizePostList(await req<unknown>('/posts.json', opts), url)
   // Signed in, but the page went without the account (Settings › Sites: the account with every request
   // off): posts the site withholds from guests came without their files, and would be left out. The
-  // same page again with the account, as the site shows it to that account.
+  // same page again with the account, as the site shows it to that account; and the next searches on
+  // this site go with it straight away (most pages hold such posts once one has).
   const sent = opts.auth ?? useSettings().s.sendAccountAlways
-  if (!sent && useSites().hasAccount && posts.some((x) => !x.fileUrl && !x.deleted)) {
-    return normalizePostList(await req<unknown>('/posts.json', { ...opts, auth: true }), site().url)
+  if (!sent && files && signedIn && posts.some((x) => !x.fileUrl && !x.deleted)) {
+    withheldFromGuests.add(url)
+    return normalizePostList(await req<unknown>('/posts.json', { ...opts, auth: true }), url)
   }
   return posts
 }

@@ -37,7 +37,7 @@ export async function countGrouped(fs: Follow[], cap: number, shown: (p: Post) =
     let page: string | undefined
     for (let n = 0; n < MAX_PAGES; n++) {
       const q = `${group.map((f) => `~${f.tag}`).join(' ')} id:>${oldest}${flash}`
-      const posts = await searchPosts(q, { limit: PAGE, page, priority: Priority.Idle, ttl: 0 })
+      const posts = await searchPosts(q, { limit: PAGE, page, priority: Priority.Idle, ttl: 0, files: false })
       for (const p of posts) {
         lowest = Math.min(lowest, p.id)
         const visible = shown(p)

@@ -148,7 +148,7 @@ export const useFollows = defineStore('follows', () => {
   async function siteNewest(): Promise<number> {
     const at = sites.scope
     if (newest && newest.scope === at && Date.now() - newest.at < 60_000) return newest.id
-    const r = await searchPosts('', { limit: 1, priority: Priority.User, ttl: 0 })
+    const r = await searchPosts('', { limit: 1, priority: Priority.User, ttl: 0, files: false })
     const id = r[0]?.id ?? 0
     if (id && sites.scope === at) newest = { scope: at, at: Date.now(), id }
     return id
@@ -325,7 +325,7 @@ export const useFollows = defineStore('follows', () => {
             continue
           }
           const flash = useSettings().s.blockFlash ? ' -type:swf' : ''
-          const posts = await searchPosts(`${f.tag} id:>${f.lastSeen}${flash}`, { limit: CHECK_LIMIT, priority: Priority.Idle, ttl: 0 })
+          const posts = await searchPosts(`${f.tag} id:>${f.lastSeen}${flash}`, { limit: CHECK_LIMIT, priority: Priority.Idle, ttl: 0, files: false })
           const cur = sites.scope === at ? list.value.find((x) => x.tag === f.tag) : undefined
           if (cur) {
             // What the blacklist hides does not count (a full page means more than the cap anyway).
