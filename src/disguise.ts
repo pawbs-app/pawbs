@@ -1,5 +1,5 @@
 /* The entry of a disguise's page (as.html, served at /as/<kind>/): only its decoy (src/decoys/<kind>,
-   a small chunk of its own, loaded for this kind alone), and pawbs (src/main.ts) only once the code
+   a small chunk of its own, loaded for this kind alone), and pawbs only once the code
    set with the disguise is given. Back in the background for half a minute, it opens on the decoy
    again. Arriving from Settings › Privacy › Disguise, it offers to install itself. */
 import { DEFAULT_COLOR, disguise, isSecret, KIND_INFO, normalizeSecret, type DisguiseKind } from './services/disguise'
@@ -59,7 +59,47 @@ async function open() {
     if (document.visibilityState === 'hidden') hiddenAt = Date.now()
     else if (hiddenAt && Date.now() - hiddenAt > 30_000) location.reload()
   })
-  await import('./main')
+  try {
+    await loadApp()
+  } catch {
+    location.reload()
+  }
+}
+
+/* pawbs itself, as its own page names it: index.html (the service worker's copy offline) lists its
+   current entry, preloads and stylesheet. Nothing of pawbs is part of this page's build, which keeps
+   the decoy light and pawbs's build what it is without disguises. */
+async function loadApp() {
+  if (import.meta.env.DEV) {
+    const entry = '/src/main.ts'
+    await import(/* @vite-ignore */ entry)
+    return
+  }
+  const res = await fetch('/index.html')
+  if (!res.ok) throw new Error(`index.html: ${res.status}`)
+  const page = await res.text()
+  const abs = (u: string) => new URL(u, `${location.origin}/`).href
+  const link = (rel: string, href: string) => {
+    const l = document.createElement('link')
+    l.rel = rel
+    l.href = href
+    l.crossOrigin = ''
+    document.head.append(l)
+    return l
+  }
+  for (const m of page.matchAll(/<link rel="modulepreload"[^>]*href="([^"]+)"/g)) link('modulepreload', abs(m[1]))
+  const css = /<link rel="stylesheet"[^>]*href="([^"]+)"/.exec(page)?.[1]
+  if (css) {
+    const l = link('stylesheet', abs(css))
+    // (Styled before it shows; a stylesheet that never answers holds it 3 seconds at most.)
+    await new Promise<void>((done) => {
+      l.onload = l.onerror = () => done()
+      setTimeout(done, 3000)
+    })
+  }
+  const scripts = [...page.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)].map((m) => abs(m[1]))
+  if (!scripts.length) throw new Error('index.html names no script')
+  for (const s of scripts) await import(/* @vite-ignore */ s)
 }
 
 /* "Install <name>", once, when this page was opened from Settings › Privacy › Disguise and the browser

@@ -90,9 +90,9 @@ export default defineConfig({
     cssCodeSplit: false,
     sourcemap: false,
     rollupOptions: {
-      // The app's page, and a disguise's (as.html, src/disguise.ts): it loads its decoy, and the app
-      // only once unlocked.
-      input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), as: fileURLToPath(new URL('./as.html', import.meta.url)) },
+      // The app's page (its entry assets/index-….js), and a disguise's (as.html, src/disguise.ts): its
+      // decoy, and the app only once unlocked, from the files index.html names.
+      input: { index: fileURLToPath(new URL('./index.html', import.meta.url)), as: fileURLToPath(new URL('./as.html', import.meta.url)) },
       output: {
         // Each decoy (src/decoys/) its own file, named so the service worker leaves them out of what
         // it stores ahead (only the one in use is kept, once used).

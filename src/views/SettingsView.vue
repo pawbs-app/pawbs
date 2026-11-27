@@ -468,7 +468,7 @@ function clearHistory() {
 const confirmWipe = ref(false)
 async function wipe() {
   await clearAll()
-  location.replace(location.pathname)
+  location.replace(location.pathname + location.search)
 }
 function clearTagCache() {
   for (const k of allKeys()) if (k.startsWith('tags:')) removeKey(k)

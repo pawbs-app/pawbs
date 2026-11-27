@@ -74,7 +74,7 @@ export function backgroundAllowed(site: string): boolean {
 /** Any answer from this app's own server (whatever it says) means the connection works. */
 async function ownServerAnswers(): Promise<boolean> {
   try {
-    await fetch(new URL('healthz', new URL('.', location.href)).href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(8000) })
+    await fetch(new URL('healthz', new URL('.', document.baseURI)).href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(8000) })
     return true
   } catch {
     return false

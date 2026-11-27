@@ -34,7 +34,7 @@ export function watchOwnRequests() {
 export async function checkOwnServer(): Promise<void> {
   const f = realFetch ?? window.fetch.bind(window)
   try {
-    const res = await f(new URL('sw.js', new URL('.', location.href)).href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' })
+    const res = await f(new URL('sw.js', new URL('.', document.baseURI)).href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' })
     useUi().held = isHeld(res)
   } catch {
     /* no answer: says nothing about a check */
@@ -45,7 +45,7 @@ export async function checkOwnServer(): Promise<void> {
     the relay's addresses, which a CDN rule may let through while it holds the rest; it checks both,
     and closes itself once neither is held (opened by script so that it may). */
 export function openCheck() {
-  window.open(new URL('check', new URL('.', location.href)).href, 'nggallery-check')
+  window.open(new URL('check', new URL('.', document.baseURI)).href, 'nggallery-check')
 }
 
 /** Calls back when the check page reports that nothing is held any more; returns the way to stop. */

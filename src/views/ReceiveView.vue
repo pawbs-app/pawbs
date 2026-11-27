@@ -143,7 +143,7 @@ function onScanned(text: string): boolean {
     return false
   }
   closeCamera()
-  if (link.app !== new URL('.', location.href).href) {
+  if (link.app !== new URL('.', document.baseURI).href) {
     // Sent from NgGallery at another address: its relay holds the transfer, and data stored here
     // would not show there anyway.
     elsewhere.value = link.href // rebuilt from the parsed address, not the scanned text

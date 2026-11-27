@@ -39,11 +39,14 @@ export function pageTitle(title: string): void {
   document.title = traceless ? (disguise?.name ?? 'pawbs') : title
 }
 
-/** The address this page keeps: its own, without the route (nor a hand-over's mark). */
+/** The address this page keeps: its own, without the route (nor a hand-over's mark), its query
+    otherwise as written (a disguise's is its installed app's start). */
 export function constantUrl(): string {
-  const q = new URLSearchParams(location.search)
-  q.delete('tl-open')
-  const s = q.toString()
+  const s = location.search
+    .slice(1)
+    .split('&')
+    .filter((p) => p && !p.startsWith('tl-open='))
+    .join('&')
   return location.pathname + (s ? `?${s}` : '')
 }
 

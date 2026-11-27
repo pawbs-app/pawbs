@@ -49,7 +49,7 @@ export class TransferGoneError extends Error {
 }
 
 function base(): string {
-  return new URL('.', location.href).href // the app's folder (it may live below the site root)
+  return new URL('.', document.baseURI).href // the app's folder (it may live below the site root; a disguise's page sets it with <base>)
 }
 async function api(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(base() + API + path, { ...init, cache: 'no-store', credentials: 'same-origin' })

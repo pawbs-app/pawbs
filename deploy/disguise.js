@@ -91,9 +91,11 @@ function pageFor(template, kind, query) {
     '    <link rel="manifest" href="/as/' + d.kind + '/manifest.webmanifest?' + html(q(startOf(d))) + '" />\n' +
     '    <link rel="icon" href="' + icon(d, '192') + '" type="image/png" />\n' +
     '    <link rel="apple-touch-icon" href="' + icon(d, '192') + '" />'
-  // (The build links the app's own manifest on every page: not this one's.)
+  // (The build links the app's own manifest and stylesheet on every page: not this one's. The
+  // stylesheet comes with the app, once unlocked, src/disguise.ts.)
   return String(template)
     .replace(/\s*<link rel="manifest" href="[^"]*manifest\.webmanifest"\s*\/?>/g, '')
+    .replace(/\s*<link rel="stylesheet"[^>]*>/g, '')
     .replace(MARK, head)
 }
 
