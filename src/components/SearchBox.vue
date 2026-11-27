@@ -60,8 +60,29 @@ const text = computed({
   get: () => props.modelValue,
   set: (v: string) => emit('update:modelValue', v),
 })
+/* Every keystroke, a word still being composed by the keyboard included (v-model would wait for the
+   word to end, which Android keyboards do for each word): the coloured copy (.mirror) shows the text,
+   the field itself being transparent. */
+function onInput(e: Event) {
+  text.value = (e.target as HTMLInputElement).value
+  syncScroll()
+}
 
 useClickOutside([root], () => (open.value = false), open)
+
+/* The list is at least 440px wide (less on a narrow screen): from a box in the title bar, short of the
+   screen's right edge, it ran past it and made the page wider than the screen (a phone could then zoom
+   out). Moved left as far as it needs to fit. */
+const shift = ref(0)
+watch(open, async (o) => {
+  shift.value = 0
+  if (!o) return
+  await nextTick()
+  const r = root.value?.querySelector<HTMLElement>('.suggest')?.getBoundingClientRect()
+  if (!r) return
+  const over = r.right - (document.documentElement.clientWidth - 8)
+  if (over > 0) shift.value = Math.round(Math.min(over, Math.max(0, r.left - 8)))
+})
 
 function currentWord(): { start: number; end: number; word: string } {
   const el = input.value
@@ -364,7 +385,7 @@ function onPaste(e: ClipboardEvent) {
       </div>
       <input
       ref="input"
-      v-model="text"
+      :value="text"
       class="field"
       type="search"
       inputmode="search"
@@ -379,6 +400,7 @@ function onPaste(e: ClipboardEvent) {
       :aria-expanded="open"
       :aria-controls="open ? listId : undefined"
       :aria-activedescendant="open && active >= 0 && items[active] ? `${listId}-${active}` : undefined"
+      @input="onInput"
       @paste="onPaste"
       @keydown="onKey"
       @keyup="syncScroll"
@@ -405,7 +427,7 @@ function onPaste(e: ClipboardEvent) {
       <Icon name="sliders" />
       <span v-if="size === 'large'" class="assist-label">Assistant</span>
     </button>
-    <div v-if="open" :id="listId" class="suggest" role="listbox" aria-label="Suggestions">
+    <div v-if="open" :id="listId" class="suggest" role="listbox" aria-label="Suggestions" :style="shift ? { left: -shift + 'px' } : undefined">
       <template v-for="(s, i) in items" :key="s.kind + s.insert + i">
         <div v-if="s.group && (i === 0 || items[i - 1].group !== s.group)" class="group" role="presentation">{{ s.group }}</div>
         <button

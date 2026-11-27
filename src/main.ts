@@ -17,6 +17,14 @@ import './styles/fx.css'
 // Development builds blur every post picture (screenshots, screen sharing); production never does.
 if (import.meta.env.DEV) document.documentElement.classList.add('dev-blur')
 
+// Phones: the page itself does not zoom (a pinch on a grid or the feed, or anything wider than the
+// screen, left it zoomed in or out); the gallery zooms its pictures itself. Tablets and computers keep
+// the browser's zoom. A browser set to zoom every page anyway (an accessibility setting) still can.
+if (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600) {
+  const vp = document.querySelector<HTMLMetaElement>('meta[name=viewport]')
+  if (vp && !/user-scalable/.test(vp.content)) vp.content += ', minimum-scale=1, maximum-scale=1, user-scalable=no'
+}
+
 /* A page left open across a deploy may ask for parts of the old version, which the server no longer
    has: reload onto the new version instead of failing (at most once a minute, to never loop). */
 function reloadForStaleBuild(): boolean {
