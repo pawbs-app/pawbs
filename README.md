@@ -4,24 +4,28 @@
 and installs as an app on phones, tablets and computers. No accounts of its own, no ads, no analytics: requests go
 straight from your browser to e621 or e926, and what you keep stays on your device.
 
-![pawbs, a fast, private e621 and e926 viewer](public/og-image.png)
+[![pawbs searching in a browser window, and scrolling the feed on a phone](docs/media/readme-hero.webp)](https://pawbs.app/features)
 
 ## Features
 
 - **Search** with tag autocomplete, a query assistant for e621's search syntax, saved searches and
   tags to refine the results.
-- **Browse** in justified rows, masonry or squares: popular posts, followed tags with new-post counts
-  (kept in sync with your e621 account's followed tags if you like), pools and comics in reading order.
+- **Browse** in justified rows, masonry, squares or a feed of one post a screen: popular posts,
+  followed tags with new-post counts (kept in sync with your e621 account's followed tags if you like),
+  pools and comics in reading order.
 - **View** in a full-screen gallery with keyboard and swipe controls, zoom, video scrubbing, slideshow,
   notes, and details (tags, wiki, comments, pools).
+- **Made for phones**: a feed that snaps like a social app, videos playing as they come; swipes and
+  double taps; buttons on your thumb's side; installed from the browser, no app store needed.
 - **Keep** favourites, collections and sets on the device, with or without an e621 account, and a
   blacklist in e621's own syntax.
 - **Move** everything to another device with a QR code (encrypted on the device), or back it up to a file.
-- **Lock** it all if you like: encrypted on the device, opened with a passkey or a password, locked again
-  after a while.
+- **Lock** it all if you like: encrypted on the device, opened with a passkey or a password. Leave no
+  trace in the browser's history, or, on a phone, install it disguised as a working calculator, notes
+  app or timer that opens pawbs only with your code.
 - **Fast**: preloading, requests paced under the API's rate limit, and an app shell that opens offline.
 
-All features: [pawbs.app/features](https://pawbs.app/features) · FAQ: [pawbs.app/faq](https://pawbs.app/faq).
+Every feature, with pictures: [pawbs.app/features](https://pawbs.app/features) · FAQ: [pawbs.app/faq](https://pawbs.app/faq).
 Works with e621, e926 and other boards that offer e621's API. pawbs is unofficial and not affiliated
 with e621 or e926.
 
@@ -60,7 +64,8 @@ builds and releases it; [github.com/pawbs-app/pawbs](https://github.com/pawbs-ap
 
 ## Contact
 
-Bugs and ideas: [contact@pawbs.app](mailto:contact@pawbs.app) or an issue on this repository.
+Missing something? Found a bug? Write to [contact@pawbs.app](mailto:contact@pawbs.app) or open an
+issue on this repository. Ideas are welcome.
 
 ## License
 
