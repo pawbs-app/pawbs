@@ -2,7 +2,8 @@
 /* The phone's tab bar (640px wide or less): the four places used most, and More for the rest
    (MoreSheet). At the bottom, where a thumb reaches; the place in use carries the HUD's brackets
    around its icon and its word in full white; Following counts what is new. Hidden under the
-   gallery and while posts are being picked (the selection bar takes the bottom then). */
+   gallery and while posts are being picked (the selection bar takes the bottom then). The tab in use,
+   tapped again, goes back to the top of its page (retap). */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
@@ -10,6 +11,7 @@ import MoreSheet from './MoreSheet.vue'
 import { useSites } from '@/stores/sites'
 import { useInbox } from '@/composables/inbox'
 import { useSelection } from '@/stores/selection'
+import { currentRefresh } from '@/services/refresh'
 
 const route = useRoute()
 const sites = useSites()
@@ -28,6 +30,16 @@ const tabs = computed(() => [
   { key: 'following', label: 'Following', icon: 'eye', to: { path: '/following' }, badge: inbox.total.value },
   { key: 'favorites', label: 'Favourites', icon: 'bookmark', to: favTo.value },
 ])
+/* The tab in use, tapped again: back to the top of its page; at the top already, its page reloads (as
+   pulling down does: Following checks again, a search asks again). */
+function retap(e: MouseEvent, key: string) {
+  if (!isOn(key) || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || route.query.post) return
+  e.preventDefault() // (before the link: no navigation to where it already is)
+  if (window.scrollY > 4) {
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' })
+  } else void currentRefresh()?.()
+}
 function isOn(key: string) {
   if (moreOpen.value) return false
   if (key === 'favorites') return route.name === 'favorites' || (route.name === 'posts' && !!sites.active && route.query.q === `fav:${sites.active.username}`)
@@ -47,7 +59,7 @@ const moreOn = computed(() => moreOpen.value || ['pools', 'pool', 'sets', 'set',
 
 <template>
   <nav class="tabbar" :class="{ typing, picking }" aria-label="Sections">
-    <RouterLink v-for="t in tabs" :key="t.key" :to="t.to" class="tab" :class="{ on: isOn(t.key) }" :aria-current="isOn(t.key) ? 'page' : undefined" data-press="off">
+    <RouterLink v-for="t in tabs" :key="t.key" :to="t.to" class="tab" :class="{ on: isOn(t.key) }" :aria-current="isOn(t.key) ? 'page' : undefined" data-press="off" @click.capture="retap($event, t.key)">
       <span class="ico">
         <Icon :name="t.icon" :size="18" />
         <span v-if="t.badge" class="badge tabular">{{ t.badge > 99 ? '99+' : t.badge }}</span>

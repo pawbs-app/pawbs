@@ -1,5 +1,5 @@
 /* Paste to open: what a pasted text points to in pawbs, if anything. A post's number ("123456",
-   "#123456"), or a link to a post, a pool or a search on e621, e926 or the site in use. */
+   "#123456"), or a link to a post, a pool, a set or a search on e621, e926 or the site in use. */
 
 /** The pawbs address to open for a pasted text, or null. `bareNumbers`: a number alone counts (not in
     the search box, where it may be a search for a tag). */
@@ -22,6 +22,8 @@ export function pastedTarget(text: string, siteUrl: string | undefined, bareNumb
   if (post) return `/post/${post[1]}?post=${post[1]}`
   const pool = /^\/pools\/(\d+)\/?$/.exec(url.pathname)
   if (pool) return `/pools/${pool[1]}`
+  const set = /^\/post_sets\/(\d+)\/?$/.exec(url.pathname)
+  if (set) return `/sets/${set[1]}`
   if (/^\/posts\/?$/.test(url.pathname)) {
     const tags = url.searchParams.get('tags')?.trim()
     return tags ? `/posts?q=${encodeURIComponent(tags)}` : '/posts'

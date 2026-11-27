@@ -107,6 +107,13 @@ export default defineConfig({
           { name: 'Favourites', url: './#/favorites', description: 'Your favourites' },
           { name: 'Following', url: './#/following', description: 'New posts in the tags you follow' },
         ],
+        // The installed app in the system's share sheet (Android, Chromium browsers): a link shared from
+        // another app opens here (App.vue: shared links). Nothing goes through the server.
+        share_target: {
+          action: './',
+          method: 'GET',
+          params: { title: 'share-title', text: 'share-text', url: 'share-url' },
+        },
       },
       workbox: {
         // The app shell is precached; everything from the site's API and file host stays live.

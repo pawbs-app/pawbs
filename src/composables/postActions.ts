@@ -154,5 +154,5 @@ export function usePostActions() {
     ]
   }
 
-  return { postUrl, download, openOriginal, openOnSite, copyLink, copyFile, canShare, share, postEntries, notInterested }
+  return { postUrl, download, openOriginal, openOnSite, copyLink, copyFile, canShare, share, artists, postEntries, notInterested }
 }

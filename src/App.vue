@@ -155,6 +155,20 @@ function onPaste(e: ClipboardEvent) {
 }
 onMounted(() => document.addEventListener('paste', onPaste))
 
+/* Shared from another app: the installed app is a share target (the manifest's share_target), opened
+   at ./?share-url=…&share-text=…&share-title=…. The first e621 or e926 link in what came opens, as a
+   pasted one would; the address is put back without it. */
+const SHARED = ['share-url', 'share-text', 'share-title']
+onMounted(() => {
+  const q = new URLSearchParams(location.search)
+  if (!SHARED.some((k) => q.has(k))) return
+  const said = SHARED.map((k) => q.get(k) ?? '').join(' ')
+  history.replaceState(history.state, '', location.pathname + location.hash)
+  const to = (said.match(/https?:\/\/\S+/g) ?? [said.trim()]).map((l) => pastedTarget(l, sites.active?.url, false)).find((t) => !!t)
+  if (to) void appRouter.push(to)
+  else ui.toast('Shared with pawbs: not a link to a post, a search, a pool or a set on e621 or e926', { tone: 'warn', ms: 7000 })
+})
+
 // The browser's promise to keep this data, asked where it asks nobody (services/keepData); the backup
 // store starts counting the week before its first reminder.
 onMounted(() =>

@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { persistent, readJson, writeJson } from './persist'
 
-export type Layout = 'justified' | 'masonry' | 'grid'
+export type Layout = 'justified' | 'masonry' | 'grid' | 'feed'
+/** What a double tap on a picture in the gallery does (on a touch screen). */
+export type DoubleTap = 'zoom' | 'favorite' | 'vote' | 'none'
 export type PreloadMode = 'off' | 'light' | 'balanced' | 'aggressive'
 /** What the mouse wheel does over a picture in the gallery. */
 export type WheelAction = 'none' | 'navigate' | 'zoom'
@@ -71,6 +73,27 @@ export interface Settings {
   galleryShare: boolean
   /** Slideshow: seconds a picture stays (a video plays to its end). */
   slideshowSeconds: number
+  // touch (gallery and feed)
+  /** A double tap on a picture: zoom, save to favourites, vote up, or nothing (single taps then act at once). */
+  doubleTap: DoubleTap
+  /** A double tap on a video: seek on the sides and play / pause in the middle, or the picture's action. */
+  doubleTapVideo: 'seek' | 'same'
+  /** The thumb that holds the phone: the gallery's actions and the feed's rail sit on its side. */
+  hand: 'right' | 'left'
+  /** Swiping sideways steps between posts. */
+  swipeStep: boolean
+  /** Swiping down closes the gallery. */
+  swipeClose: boolean
+  /** A finger held on a playing video plays it at 2× until lifted. */
+  holdFast: boolean
+  /** A long press on a picture opens the post's menu, or the browser's own. */
+  longPress: 'menu' | 'browser'
+  /** A short vibration when a touch acts (double tap, long press, hold), where the browser can. */
+  vibrate: boolean
+  /** The feed's videos play with sound (they start muted until it is turned on). */
+  feedSound: boolean
+  /** In full screen, the screen turns to a video's orientation (where the browser can lock it). */
+  videoTurn: boolean
   infoPanel: boolean
   showNotes: boolean
   zoomMode: 'fit' | 'width' | 'actual'
@@ -127,6 +150,16 @@ export const DEFAULT_SETTINGS: Settings = {
   hideCursor: true,
   galleryShare: true,
   slideshowSeconds: 6,
+  doubleTap: 'zoom',
+  doubleTapVideo: 'seek',
+  hand: 'right',
+  swipeStep: true,
+  swipeClose: true,
+  holdFast: true,
+  longPress: 'menu',
+  vibrate: true,
+  feedSound: false,
+  videoTurn: true,
   infoPanel: false,
   showNotes: true,
   zoomMode: 'fit',

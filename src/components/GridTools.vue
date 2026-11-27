@@ -16,13 +16,14 @@ const layouts: { value: Layout; label: string; icon: string; title: string }[] =
   { value: 'justified', label: 'Rows', icon: 'rows', title: 'Rows: every picture keeps its shape' },
   { value: 'masonry', label: 'Columns', icon: 'columns', title: 'Columns: stacked by height' },
   { value: 'grid', label: 'Grid', icon: 'grid', title: 'Grid: equal squares' },
+  { value: 'feed', label: 'Feed', icon: 'feed', title: 'Feed: one post a screen, videos playing as they come' },
 ]
 </script>
 
 <template>
   <div class="gtools">
     <Segmented v-model="layout" :options="layouts" label="Layout" />
-    <label class="size" title="Thumbnail size">
+    <label v-if="layout !== 'feed'" class="size" title="Thumbnail size">
       <input v-model.number="size" class="rv-slider" type="range" :min="phone ? 90 : 120" :max="phone ? 360 : 420" step="10" aria-label="Thumbnail size" />
       <span class="tabular">{{ size }}</span>
     </label>

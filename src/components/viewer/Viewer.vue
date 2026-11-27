@@ -13,7 +13,7 @@ import type { Note, Post, VideoSource } from '@/api/types'
 import { getNotes, getPost } from '@/api/endpoints'
 import { ApiError, Priority, rememberMediaHost } from '@/api/client'
 import { useGallery } from '@/stores/gallery'
-import { useSettings } from '@/stores/settings'
+import { useSettings, type DoubleTap } from '@/stores/settings'
 import { useFavorites } from '@/stores/favorites'
 import { useCollections } from '@/stores/collections'
 import { useUi } from '@/stores/ui'
@@ -33,6 +33,10 @@ import { lookahead } from '@/services/netinfo'
 import { pickImageUrl, videoCandidates } from '@/services/media'
 import { effectsOn } from '@/services/zoomFx'
 import { openMenu } from '@/services/contextMenu'
+import { buzz } from '@/services/haptics'
+import { turnFor, unturn } from '@/services/screenTurn'
+import { clearMedia, mediaPosition, showMedia } from '@/services/mediaSession'
+import { prettyTag } from '@/query/syntax'
 import { wantPoolNames } from '@/services/poolNames'
 import { usePostActions } from '@/composables/postActions'
 import { DOWNLOADS } from '@/features'
@@ -486,10 +490,13 @@ const videoEvents: [string, () => void][] = [
   ['playing', () => (vWaiting.value = false)],
   ['canplay', () => (videoReadyUrl.value = attached?.url ?? null)],
   ['error', () => onVideoError()],
+  ['enterpictureinpicture', () => (inPip.value = true)],
+  ['leavepictureinpicture', () => (inPip.value = false)],
 ]
 function detachVideo() {
   const a = attached
   if (!a) return
+  endPip()
   attached = null
   a.off()
   if (video.value === a.el) video.value = null
@@ -604,6 +611,46 @@ function setVolume(v: number) {
     video.value.muted = v === 0
   }
 }
+/* Picture in picture, where the browser lets pages ask for it (Chromium; Firefox has its own button
+   over videos and no way for a page to start it): the video plays on in a small window over other
+   apps. Another post, or closing the gallery, ends it (detachVideo). */
+const canPip = typeof document !== 'undefined' && document.pictureInPictureEnabled === true
+const inPip = ref(false)
+async function togglePip() {
+  const v = video.value
+  if (!v || !canPip) return
+  try {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture()
+    else await v.requestPictureInPicture()
+  } catch {
+    flash('Picture in picture is not available for this video')
+  }
+}
+function endPip() {
+  if (typeof document !== 'undefined' && document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {})
+}
+
+/* The system's media controls (lock screen, notifications) for the video playing here
+   (services/mediaSession): shown once it plays, kept while it is paused, cleared on any other post. */
+watch([() => post.value, playing, rate], ([p, on]) => {
+  if (!p || p.kind !== 'video') return clearMedia()
+  const v = video.value
+  if (on) {
+    showMedia(
+      { title: `#${p.id}`, artist: actions.artists(p).map(prettyTag).join(', ') || 'Unknown artist', album: sites.active?.name ?? 'pawbs', art: p.sampleUrl ?? p.previewUrl },
+      {
+        play: () => void video.value?.play().catch(() => {}),
+        pause: () => video.value?.pause(),
+        previous: () => void go(-1),
+        next: () => void go(1),
+        seek: (d) => seek(d),
+        seekTo: (t) => seekTo(t),
+      },
+    )
+  }
+  if (v) mediaPosition(v.currentTime, v.duration, v.playbackRate)
+})
+
 function cycleRate() {
   const rates = [1, 1.5, 2, 0.5, 0.75]
   rate.value = rates[(rates.indexOf(rate.value) + 1) % rates.length]
@@ -1043,6 +1090,15 @@ const canFullscreen = computed(() => !!document.fullscreenEnabled && !appFullscr
 function onFsChange() {
   isFullscreen.value = !!root.value && document.fullscreenElement === root.value
 }
+// In the gallery's full screen, a video turns the screen its way (services/screenTurn); anything else
+// lets it turn freely again.
+watch(
+  () => (isFullscreen.value && post.value?.kind === 'video' ? `${post.value.width}x${post.value.height}` : ''),
+  (k) => {
+    if (!k || !post.value) return unturn()
+    void turnFor(post.value.width, post.value.height)
+  },
+)
 function toggleFullscreen() {
   if (!canFullscreen.value) return
   if (document.fullscreenElement === root.value) document.exitFullscreen().catch(() => {})
@@ -1052,6 +1108,7 @@ const saved = computed(() => (post.value ? favorites.isSaved(post.value) : false
 function toggleSave() {
   if (!post.value) return
   const on = favorites.toggle(post.value)
+  buzz()
   flash(on ? 'Saved to favourites' : 'Removed from favourites')
 }
 const actions = usePostActions()
@@ -1079,6 +1136,7 @@ const voting = computed(() => !!post.value && votes.busy.has(post.value.id))
 async function castVote(v: 1 | -1) {
   const p = post.value
   if (!p || !sites.hasAccount) return
+  buzz()
   try {
     const now = await votes.vote(p, v)
     if (post.value?.id === p.id) flash(now > 0 ? 'Voted up' : now < 0 ? 'Voted down' : 'Vote taken back')
@@ -1122,6 +1180,13 @@ function skipPost() {
 function onStageMenu(e: MouseEvent) {
   const p = post.value
   if (!p) return
+  // A long press (Settings › Gallery › Touch): on a playing video it plays fast while held (holdFast
+  // below), not a menu; with the browser's menu chosen, the browser's own.
+  const byTouch = (e as PointerEvent).pointerType === 'touch' || performance.now() - lastTouchAt < 1500
+  if (byTouch) {
+    if (fastHeld.value || holdTimer != null) return void e.preventDefault()
+    if (S.value.longPress === 'browser') return
+  }
   const isVideo = p.kind === 'video'
   const image = p.kind !== 'video' && p.kind !== 'flash'
   openMenu(
@@ -1138,6 +1203,7 @@ function onStageMenu(e: MouseEvent) {
           run: cycleAB,
         },
       isVideo && { label: `Speed ×${rate.value}`, icon: 'speed', run: cycleRate },
+      isVideo && canPip && { label: inPip.value ? 'Back from picture in picture' : 'Picture in picture', icon: 'pip', checked: inPip.value, run: togglePip },
       'sep',
       ...actions.postEntries(p, flash),
       'sep',
@@ -1155,6 +1221,7 @@ function onStageMenu(e: MouseEvent) {
     ],
     `Post #${p.id}`,
   )
+  if (byTouch && e.defaultPrevented) buzz()
 }
 function cycleZoom() {
   const order: ('fit' | 'width' | 'actual')[] = ['fit', 'width', 'actual']
@@ -1377,8 +1444,41 @@ function touchDown(e: PointerEvent) {
     ghostTop.value = el.scrollTop
     measureScroll()
     touching.value = !canX
-  } else if (pts.size === 2) beginPinch()
+    armHold()
+  } else if (pts.size === 2) {
+    disarmHold()
+    beginPinch()
+  }
 }
+
+/* A finger held still on a playing video plays it at 2× until it lifts (Settings › Gallery › Touch ›
+   Hold a video…), as video apps do. Not on a swipe, a pinch or a paused video; a pause, the end or
+   another post puts the speed back. */
+const fastHeld = ref(false)
+let holdTimer: number | null = null
+function armHold() {
+  disarmHold()
+  if (!S.value.holdFast || post.value?.kind !== 'video' || !playing.value) return
+  holdTimer = window.setTimeout(() => {
+    holdTimer = null
+    const v = video.value
+    if (mode !== 'tap' || pts.size !== 1 || !v || v.paused) return
+    fastHeld.value = true
+    v.playbackRate = 2
+    buzz()
+  }, 450)
+}
+function disarmHold() {
+  if (holdTimer != null) clearTimeout(holdTimer)
+  holdTimer = null
+}
+function endHold() {
+  disarmHold()
+  if (!fastHeld.value) return
+  fastHeld.value = false
+  if (video.value) video.value.playbackRate = rate.value
+}
+watch([playing, postId], () => fastHeld.value && endHold())
 function touchMove(e: PointerEvent) {
   if (!pts.has(e.pointerId)) return
   lastTouchAt = performance.now()
@@ -1396,14 +1496,17 @@ function touchMove(e: PointerEvent) {
     touching.value = !canX
     return
   }
+  if (fastHeld.value) return // held for 2×: the finger may wander, nothing else starts
   samples.push({ t: e.timeStamp, x: e.clientX, y: e.clientY })
   while (samples.length > 2 && e.timeStamp - samples[0].t > 100) samples.shift()
   const dx = e.clientX - start.x
   const dy = e.clientY - start.y
   if (mode === 'tap') {
     if (Math.hypot(dx, dy) < 8) return
+    disarmHold()
     const sideways = Math.abs(dx) > Math.abs(dy)
-    if (sideways && !canX) mode = 'swipe-x'
+    // (Swiping sideways switched off, Settings › Gallery › Touch: the finger only pans what scrolls.)
+    if (sideways && !canX) mode = S.value.swipeStep ? 'swipe-x' : 'pan'
     else if (!sideways && !canY && freeScale.value === null) mode = 'swipe-y'
     else mode = 'pan'
   }
@@ -1415,7 +1518,9 @@ function touchMove(e: PointerEvent) {
     const hasNeighbour = !!list.value[index.value + (dx < 0 ? 1 : -1)]
     paint(hasNeighbour ? dx : dx * 0.3, 0) // resists at either end of the list
   } else {
-    paint(0, dy > 0 ? dy : dy * 0.35) // down follows the finger; up resists (it opens the details)
+    // Down follows the finger (it closes); up resists (it opens the details); down resists too when
+    // swiping down to close is switched off.
+    paint(0, dy > 0 && S.value.swipeClose ? dy : dy * 0.35)
   }
 }
 function touchEnd(e: PointerEvent, cancelled: boolean) {
@@ -1435,6 +1540,15 @@ function touchEnd(e: PointerEvent, cancelled: boolean) {
     return
   }
   if (pts.size) return
+  if (fastHeld.value || holdTimer != null) {
+    const wasFast = fastHeld.value
+    endHold()
+    if (wasFast) {
+      mode = 'tap'
+      touching.value = false
+      return // the hold was the gesture: no tap
+    }
+  }
   if (settling || lateStart) {
     lateStart = false // lifted before the slide finished: nothing to do
     return
@@ -1487,7 +1601,7 @@ async function releaseX(dx: number, vx: number) {
   touching.value = pts.size > 0
 }
 async function releaseY(dy: number, vy: number) {
-  if (dy > 0 && (dy > 120 || (vy > 0.45 && dy > 24))) {
+  if (dy > 0 && S.value.swipeClose && (dy > 120 || (vy > 0.45 && dy > 24))) {
     settling = true
     paint(0, Math.max(dy, stageH.value * 0.6), 180)
     await sleep(170)
@@ -1505,7 +1619,10 @@ let tapTimer: number | null = null
 let lastTap: { t: number; x: number; y: number } | null = null
 function tapped(x: number, y: number, held: number) {
   touching.value = false
-  if (held > 500) return // a long press opens the browser's own menu; it is not a tap
+  if (held > 500) return // a long press opens a menu (onStageMenu); it is not a tap
+  const away = awayAtDown
+  // No double tap on this post (Settings › Gallery › Touch › Nothing, or Flash): no waiting for one.
+  if (doubleTapOf(post.value) === 'none') return singleTap(away)
   const now = performance.now()
   if (lastTap && now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 40) {
     if (tapTimer != null) clearTimeout(tapTimer)
@@ -1514,26 +1631,36 @@ function tapped(x: number, y: number, held: number) {
     return doubleTap(x, y)
   }
   lastTap = { t: now, x, y }
-  const away = awayAtDown
   if (tapTimer != null) clearTimeout(tapTimer)
   tapTimer = window.setTimeout(() => {
     tapTimer = null
     lastTap = null
-    if (panel.value && narrowScreen) panel.value = false
-    else if (slideshow.value) {
-      toggleSlidePause()
-      chromeHidden.value = false
-      poke()
-    } else if (away) {
-      chromeHidden.value = false
-      poke()
-    } else chromeHidden.value = true
+    singleTap(away)
   }, 260)
+}
+function singleTap(away: boolean) {
+  if (panel.value && narrowScreen) panel.value = false
+  else if (slideshow.value) {
+    toggleSlidePause()
+    chromeHidden.value = false
+    poke()
+  } else if (away) {
+    chromeHidden.value = false
+    poke()
+  } else chromeHidden.value = true
+}
+/** What a double tap does on this post (Settings › Gallery › Touch): a video seeks and plays unless
+    set to act as a picture. */
+function doubleTapOf(p: Post | null | undefined): DoubleTap | 'seek' {
+  if (!p || p.kind === 'flash') return 'none'
+  if (p.kind === 'video' && S.value.doubleTapVideo === 'seek') return 'seek'
+  return S.value.doubleTap
 }
 function doubleTap(x: number, y: number) {
   const p = post.value
-  if (!p || p.kind === 'flash') return
-  if (p.kind === 'video') {
+  if (!p) return
+  const act = doubleTapOf(p)
+  if (act === 'seek') {
     const r = stage.value?.getBoundingClientRect()
     const f = r ? (x - r.left) / r.width : 0.5
     if (f < 0.35) seek(-S.value.seekStep)
@@ -1541,8 +1668,42 @@ function doubleTap(x: number, y: number) {
     else togglePlay()
     return
   }
-  if (freeScale.value !== null) resetZoom()
-  else void zoomAt(2.5, x, y)
+  if (act === 'zoom') {
+    if (p.kind === 'video') togglePlay() // (nothing to zoom: it plays or pauses)
+    else if (freeScale.value !== null) resetZoom()
+    else void zoomAt(2.5, x, y)
+    return
+  }
+  if (act === 'favorite') {
+    // Saves, never removes: on a saved post the mark only says it is.
+    burst('bookmark-on', x, y)
+    buzz()
+    if (!favorites.isSaved(p)) {
+      favorites.toggle(p)
+      flash('Saved to favourites')
+    }
+    return
+  }
+  if (act === 'vote') {
+    if (!sites.hasAccount) return flash('Voting needs an account (Settings › Sites)')
+    burst('arrow-up', x, y)
+    buzz()
+    // Up, never taken back (stores/votes: upvote keeps a vote already there).
+    if (votes.of(p).vote > 0) return
+    votes.upvote(p).then(
+      () => post.value?.id === p.id && flash('Voted up'),
+      (e: Error) => ui.toast(e.message, { tone: 'bad' }),
+    )
+  }
+}
+
+/* The mark a double tap leaves where the finger was (a favourite, a vote). */
+const bursts = ref<{ id: number; x: number; y: number; icon: string }[]>([])
+let burstId = 0
+function burst(icon: string, x: number, y: number) {
+  const id = ++burstId
+  bursts.value = [...bursts.value, { id, x, y, icon }]
+  window.setTimeout(() => (bursts.value = bursts.value.filter((b) => b.id !== id)), 700)
 }
 
 // Pinch: the point between the fingers stays under them while the picture scales.
@@ -1864,6 +2025,8 @@ onBeforeUnmount(() => {
   holdPreloads(false)
   document.documentElement.classList.remove('is-locked')
   document.removeEventListener('fullscreenchange', onFsChange)
+  unturn()
+  clearMedia()
   ro?.disconnect()
   release('viewer')
   clearSlide()
@@ -2073,6 +2236,8 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
 
       <div v-if="seekNote || endNote" class="flash readout" :class="{ 'over-video': post?.kind === 'video' }" aria-hidden="true">{{ endNote || seekNote }}</div>
       <!-- The same messages for screen readers: a region that is always there, so changes are announced. -->
+      <div v-for="b in bursts" :key="b.id" class="burst" :style="{ left: b.x + 'px', top: b.y + 'px' }" aria-hidden="true"><Icon :name="b.icon" :size="64" /></div>
+      <div v-if="fastHeld" class="fast readout" aria-hidden="true">2×</div>
       <div class="sr-only" role="status">{{ endNote || seekNote || (slideshow && slidePaused ? 'Slideshow paused' : '') }}</div>
       <div v-if="slideshow" class="slide-line" :class="{ paused: slidePaused }" aria-hidden="true">
         <span v-if="slideCount !== null" :key="slideCount" class="slide-fill" :style="{ animationDuration: S.slideshowSeconds + 's' }"></span>
@@ -2080,7 +2245,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
       <div v-if="slideshow && slidePaused" class="slide-paused readout"><Icon name="pause" :size="10" /> Slideshow paused</div>
       <div v-if="vStalled && playing" class="buffering"><span class="rv-dot rv-dot--warn rv-dot--pulse"></span>Buffering</div>
 
-      <div ref="barEl" class="rv-controls bar" :class="{ 'is-video': post?.kind === 'video' }">
+      <div ref="barEl" class="rv-controls bar" :class="{ 'is-video': post?.kind === 'video', 'left-hand': S.hand === 'left', 'with-steps': !S.swipeStep }">
         <button class="rv-icon-btn step" type="button" title="Previous (←)" :disabled="index <= 0" @click="go(-1)"><Icon name="chevron-left" /></button>
         <span class="count tabular">{{ counter }}</span>
         <button class="rv-icon-btn step" type="button" title="Next (→)" @click="go(1)"><Icon name="chevron-right" /></button>
@@ -2126,6 +2291,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
             <input class="rv-slider" type="range" min="0" :max="vDur || 1" step="0.01" :value="vTime" aria-label="Position" @input="seekTo(+($event.target as HTMLInputElement).value)" />
           </div>
           <button class="rv-icon-btn" type="button" :title="S.muted ? 'Unmute (M)' : 'Mute (M)'" @click="toggleMute"><Icon :name="S.muted ? 'muted' : 'volume'" /></button>
+          <button v-if="canPip" class="rv-icon-btn" :class="{ 'is-active': inPip }" type="button" :aria-pressed="inPip" :title="inPip ? 'Back from picture in picture' : 'Picture in picture: a small window over other apps'" @click="togglePip"><Icon name="pip" /></button>
           <input
             class="rv-slider vol hide-s"
             :class="{ 'is-muted': S.muted }"
@@ -2159,26 +2325,26 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
           <button type="button" :class="{ 'is-on': zoom === 'actual' && zoomFactor === null }" title="Actual size (Z)" @click="setZoom('actual')">1:1</button>
         </div>
         <button v-if="post?.hasNotes" class="rv-icon-btn hide-s" :class="{ 'is-active': S.showNotes }" type="button" title="Notes (N)" @click="settings.s.showNotes = !S.showNotes"><Icon name="note" /></button>
-        <span class="sep"></span>
-        <button class="rv-icon-btn" :class="{ 'is-shaped': saved }" type="button" :title="saved ? 'Remove from favourites (S)' : 'Save to favourites (S)'" @click="toggleSave">
+        <span class="sep act"></span>
+        <button class="rv-icon-btn act" :class="{ 'is-shaped': saved }" type="button" :title="saved ? 'Remove from favourites (S)' : 'Save to favourites (S)'" @click="toggleSave">
           <Icon :name="saved ? 'bookmark-on' : 'bookmark'" />
         </button>
         <template v-if="sites.hasAccount && voteState">
-          <button class="rv-icon-btn" :class="{ 'is-active': voteState.vote > 0 }" type="button" :disabled="voting" :aria-pressed="voteState.vote > 0" :title="voteState.vote > 0 ? 'Take back the vote up (V)' : 'Vote up (V)'" @click="castVote(1)">
+          <button class="rv-icon-btn act" :class="{ 'is-active': voteState.vote > 0 }" type="button" :disabled="voting" :aria-pressed="voteState.vote > 0" :title="voteState.vote > 0 ? 'Take back the vote up (V)' : 'Vote up (V)'" @click="castVote(1)">
             <Icon name="arrow-up" />
           </button>
-          <span class="vote-score tabular hide-s" :title="`Score ${voteState.total}: ${voteState.up} up, ${Math.abs(voteState.down)} down`">{{ voteState.total }}</span>
-          <button class="rv-icon-btn hide-s" :class="{ 'is-active': voteState.vote < 0 }" type="button" :disabled="voting" :aria-pressed="voteState.vote < 0" :title="voteState.vote < 0 ? 'Take back the vote down (Shift + V)' : 'Vote down (Shift + V)'" @click="castVote(-1)">
+          <span class="vote-score act tabular hide-s" :title="`Score ${voteState.total}: ${voteState.up} up, ${Math.abs(voteState.down)} down`">{{ voteState.total }}</span>
+          <button class="rv-icon-btn act hide-s" :class="{ 'is-active': voteState.vote < 0 }" type="button" :disabled="voting" :aria-pressed="voteState.vote < 0" :title="voteState.vote < 0 ? 'Take back the vote down (Shift + V)' : 'Vote down (Shift + V)'" @click="castVote(-1)">
             <Icon name="arrow-down" />
           </button>
         </template>
-        <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Download (D)" @click="download"><Icon name="download" /></button>
-        <button class="rv-icon-btn hide-s" type="button" title="Open original (O)" @click="openOriginal"><Icon name="external" /></button>
-        <button class="rv-icon-btn hide-s" type="button" title="Copy link (C)" @click="copyLink"><Icon name="link" /></button>
+        <button v-if="DOWNLOADS" class="rv-icon-btn act" type="button" title="Download (D)" @click="download"><Icon name="download" /></button>
+        <button class="rv-icon-btn act hide-s" type="button" title="Open original (O)" @click="openOriginal"><Icon name="external" /></button>
+        <button class="rv-icon-btn act hide-s" type="button" title="Copy link (C)" @click="copyLink"><Icon name="link" /></button>
         <!-- A phone has no Copy link in this row: its share sheet instead (the link copied where there is none). -->
-        <button v-if="S.galleryShare" class="rv-icon-btn show-s" type="button" :title="actions.canShare ? 'Share' : 'Copy link'" @click="sharePost"><Icon :name="actions.canShare ? 'share' : 'link'" /></button>
+        <button v-if="S.galleryShare" class="rv-icon-btn act show-s" type="button" :title="actions.canShare ? 'Share' : 'Copy link'" @click="sharePost"><Icon :name="actions.canShare ? 'share' : 'link'" /></button>
         <button
-          class="rv-icon-btn slide-btn"
+          class="rv-icon-btn act slide-btn"
           :class="{ 'is-active': slideshow }"
           type="button"
           :title="slideshow ? 'Stop the slideshow (P)' : `Slideshow: ${S.slideshowSeconds} s a picture (P)`"
@@ -2187,8 +2353,8 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
         >
           <Icon name="slideshow" />
         </button>
-        <button class="rv-icon-btn" :class="{ 'is-active': panel }" type="button" title="Details (I)" @click="panel = !panel"><Icon name="info" /></button>
-        <button v-if="canFullscreen" class="rv-icon-btn" type="button" :title="isFullscreen ? 'Exit full screen (F)' : 'Full screen (F)'" @click="toggleFullscreen">
+        <button class="rv-icon-btn act" :class="{ 'is-active': panel }" type="button" title="Details (I)" @click="panel = !panel"><Icon name="info" /></button>
+        <button v-if="canFullscreen" class="rv-icon-btn act" type="button" :title="isFullscreen ? 'Exit full screen (F)' : 'Full screen (F)'" @click="toggleFullscreen">
           <Icon :name="isFullscreen ? 'exit-fullscreen' : 'fullscreen'" />
         </button>
       </div>
@@ -2599,6 +2765,62 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
   pointer-events: none;
 }
 
+/* A double tap's mark, where the finger was (a favourite, a vote up). */
+.burst {
+  position: fixed;
+  z-index: 7;
+  transform: translate(-50%, -50%);
+  color: var(--text);
+  filter: drop-shadow(0 2px 10px var(--scrim-80));
+  pointer-events: none;
+  animation: burst 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -80%) scale(0.95);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .burst {
+    animation-name: burst-still;
+  }
+  @keyframes burst-still {
+    0%,
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}
+/* A video held for 2× (holdFast). */
+.fast {
+  position: absolute;
+  left: 50%;
+  top: calc(14px + env(safe-area-inset-top));
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 4px 12px;
+  background: var(--scrim-80);
+  border: 1px solid var(--line-2);
+  color: var(--text);
+  pointer-events: none;
+}
+
 /* control bar */
 .bar {
   position: absolute;
@@ -2630,12 +2852,34 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
 .brk {
   display: none;
 }
-/* Phones step by swiping; the arrows would crowd the bar. */
+/* Phones step by swiping; the arrows would crowd the bar. With swiping sideways switched off
+   (Settings › Gallery › Touch) they come back, in place of the counter and the slideshow button
+   (P and the long-press menu still have it). */
 @media (hover: none), (pointer: coarse) {
   @container stage (max-width: 560px) {
     .bar .step {
       display: none;
     }
+    .bar.with-steps .step {
+      display: grid;
+    }
+    .bar.with-steps .count,
+    .bar.with-steps .slide-btn {
+      display: none;
+    }
+  }
+}
+/* A phone held in the left hand (Settings › Gallery › Touch › Hand): the post's actions first, on the
+   thumb's side, and the counter or the video's own buttons after them. */
+@container stage (max-width: 560px) {
+  .bar.left-hand > * {
+    order: 3;
+  }
+  .bar.left-hand > .act {
+    order: 1;
+  }
+  .bar.left-hand > .rv-spacer {
+    order: 2;
   }
 }
 /* The score between the vote buttons; the vote cast is the button's lit state. */

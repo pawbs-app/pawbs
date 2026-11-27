@@ -46,6 +46,8 @@ import { collectData, summarize, writeData } from '@/services/backupData'
 import { checkRelay, relayProblem, type RelayState } from '@/services/transfer'
 import { onCheckPassed } from '@/services/held'
 import { appFullscreen, canAppFullscreen } from '@/services/appFullscreen'
+import { canVibrate } from '@/services/haptics'
+import { canTurn } from '@/services/screenTurn'
 import { checkQuery } from '@/query/syntax'
 import { useInstall } from '@/composables/install'
 
@@ -749,6 +751,75 @@ void DEFAULT_SETTINGS
             <select v-model.number="S.seekStep" class="rv-select w120">
               <option v-for="n in [1, 2, 3, 5, 10, 15, 30]" :key="n" :value="n">{{ n }} s</option>
             </select>
+          </label>
+          <label v-if="canTurn" class="rv-setting">
+            <span>Turn the screen for videos in full screen <span class="faint">(a wide video turns the phone sideways, an upright one keeps it upright)</span></span>
+            <input v-model="S.videoTurn" class="rv-switch" type="checkbox" />
+          </label>
+        </section>
+        <section class="block">
+          <h2 class="rv-heading rv-label">Touch</h2>
+          <div class="rv-setting">
+            <span>Double tap on a picture <span class="faint">(Nothing: a single tap answers at once; pinch still zooms)</span></span>
+            <Segmented
+              v-model="S.doubleTap"
+              :options="[
+                { value: 'zoom', label: 'Zoom' },
+                { value: 'favorite', label: 'Save', title: 'Save to favourites (never removes one)' },
+                { value: 'vote', label: 'Vote up', title: 'Vote up, with an account (never takes a vote back)' },
+                { value: 'none', label: 'Nothing' },
+              ]"
+              label="Double tap on a picture"
+            />
+          </div>
+          <div class="rv-setting">
+            <span>Double tap on a video</span>
+            <Segmented
+              v-model="S.doubleTapVideo"
+              :options="[
+                { value: 'seek', label: 'Seek and play', title: 'The sides seek back and forward, the middle plays or pauses' },
+                { value: 'same', label: 'As a picture' },
+              ]"
+              label="Double tap on a video"
+            />
+          </div>
+          <div class="rv-setting">
+            <span>Hand <span class="faint">(on phones, the gallery’s buttons and the feed’s sit on its side)</span></span>
+            <Segmented
+              v-model="S.hand"
+              :options="[
+                { value: 'left', label: 'Left' },
+                { value: 'right', label: 'Right' },
+              ]"
+              label="Hand"
+            />
+          </div>
+          <label class="rv-setting">
+            <span>Swipe sideways to step <span class="faint">(off: Previous and Next in the bar)</span></span>
+            <input v-model="S.swipeStep" class="rv-switch" type="checkbox" />
+          </label>
+          <label class="rv-setting">
+            <span>Swipe down to close</span>
+            <input v-model="S.swipeClose" class="rv-switch" type="checkbox" />
+          </label>
+          <label class="rv-setting">
+            <span>Hold a video to play it at 2× <span class="faint">(until the finger lifts)</span></span>
+            <input v-model="S.holdFast" class="rv-switch" type="checkbox" />
+          </label>
+          <div class="rv-setting">
+            <span>Long press on a picture</span>
+            <Segmented
+              v-model="S.longPress"
+              :options="[
+                { value: 'menu', label: 'Post’s menu', title: 'Favourites, share, links, the original file, sets…' },
+                { value: 'browser', label: 'Browser’s menu', title: 'The browser’s own image menu' },
+              ]"
+              label="Long press on a picture"
+            />
+          </div>
+          <label v-if="canVibrate" class="rv-setting">
+            <span>Vibrate <span class="faint">(briefly, when a double tap, a long press or a held video acts)</span></span>
+            <input v-model="S.vibrate" class="rv-switch" type="checkbox" />
           </label>
         </section>
       </template>

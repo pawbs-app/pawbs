@@ -55,6 +55,7 @@ const layouts: { value: Layout; label: string; icon: string }[] = [
   { value: 'justified', label: 'Rows', icon: 'rows' },
   { value: 'masonry', label: 'Columns', icon: 'columns' },
   { value: 'grid', label: 'Squares', icon: 'grid' },
+  { value: 'feed', label: 'Feed', icon: 'feed' },
 ]
 </script>
 
@@ -76,7 +77,7 @@ const layouts: { value: Layout; label: string; icon: string }[] = [
             <Icon :name="l.icon" :size="18" /><span>{{ l.label }}</span>
           </button>
         </div>
-        <label class="size">
+        <label v-if="layout !== 'feed'" class="size">
           <span class="rv-label">Size</span>
           <input v-model.number="size" class="rv-slider" type="range" :min="phone ? 90 : 120" :max="phone ? 360 : 420" step="10" aria-label="Thumbnail size" />
           <span class="tabular">{{ size }}</span>
@@ -105,7 +106,7 @@ const layouts: { value: Layout; label: string; icon: string }[] = [
 .is-on .ico {
   color: var(--text);
 }
-/* The three layouts: one framed row of equal choices, the one in use inverted (as a Segmented). */
+/* The layouts: one framed row of equal choices, the one in use inverted (as a Segmented). */
 .layouts {
   display: flex;
   margin: 4px 16px 0;

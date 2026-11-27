@@ -34,6 +34,8 @@ const ICONS: Record<string, string[]> = {
   grid: ['M1.5 1.5h5v5h-5zM9.5 1.5h5v5h-5zM1.5 9.5h5v5h-5zM9.5 9.5h5v5h-5z'],
   rows: ['M1.5 2.5h13v4h-13zM1.5 9.5h6v4h-6zM10.5 9.5h4v4h-4z'],
   columns: ['M1.5 1.5h3.5v8h-3.5zM6.25 1.5h3.5v5h-3.5zM11 1.5h3.5v10H11zM1.5 11.5h3.5v3h-3.5zM6.25 8.5h3.5v6h-3.5z'],
+  feed: ['M4.5 1.5h7v10h-7zM4.5 13.5h7'],
+  pip: ['M1.5 2.5h13v11h-13zM8.5 8.5h4.5v3.5H8.5z'],
   home: ['M1.5 7.5L8 2l6.5 5.5', 'M3.5 6v8.5h9V6'],
   trend: ['M1.5 12.5l4.5-4.5 3 3 5.5-5.5', 'M10 5.5h4.5V10'],
   stack: ['M4 1.5h8M2.5 4h11', 'M1.5 6.5h13v8h-13z'],

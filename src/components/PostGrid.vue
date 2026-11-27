@@ -7,6 +7,7 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, toRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PostThumb from './PostThumb.vue'
+import PostFeed from './PostFeed.vue'
 import StatePanel from './StatePanel.vue'
 import LoadingPole from './LoadingPole.vue'
 import type { Post } from '@/api/types'
@@ -504,7 +505,16 @@ function open(p: Post) {
 
 <template>
   <div ref="root" class="pgrid" :class="'l-' + layout">
-    <template v-if="layout === 'justified'">
+    <PostFeed
+      v-if="layout === 'feed'"
+      :posts="visible"
+      :href-for="hrefFor"
+      :blacklisted-for="blacklistedFor"
+      :is-new="isNew"
+      @open="open"
+      @menu="onThumbMenu"
+    />
+    <template v-else-if="layout === 'justified'">
       <template v-for="(row, ri) in justified" :key="ri">
       <div v-if="row.line" class="newline" role="separator"><span class="rv-label">{{ newLabel }}</span></div>
       <div v-else class="jrow" :style="{ height: row.h + 'px', containIntrinsicSize: `auto ${row.h}px` }">
@@ -668,6 +678,13 @@ function open(p: Post) {
 }
 .sentinel {
   height: 1px;
+}
+/* The feed snaps to each card (PostFeed): what follows the last one (loading, the end, an error)
+   snaps into view too. */
+.l-feed > .state,
+.l-feed > .more-bar,
+.l-feed > .end {
+  scroll-snap-align: end;
 }
 /* A follow's results: the line between its new posts (above, marked NEW) and the ones seen before.
    The good-news green square, the words, a rule to the edge. */
