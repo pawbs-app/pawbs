@@ -226,8 +226,9 @@ useRefresh(() => {
   margin: 0;
 }
 @media (max-width: 860px) {
+  /* (minmax: a plain 1fr grew to the list's widest row, 600px, and the page ran past a phone's screen.) */
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .list {
     position: static;
