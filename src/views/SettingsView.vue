@@ -752,6 +752,10 @@ void DEFAULT_SETTINGS
               <option v-for="n in [1, 2, 3, 5, 10, 15, 30]" :key="n" :value="n">{{ n }} s</option>
             </select>
           </label>
+          <label class="rv-setting">
+            <span>Cast button on videos <span class="faint">(the browser’s own, shown when a cast device is on the network)</span></span>
+            <input v-model="S.castButton" class="rv-switch" type="checkbox" />
+          </label>
           <label v-if="canTurn" class="rv-setting">
             <span>Turn the screen for videos in full screen <span class="faint">(a wide video turns the phone sideways, an upright one keeps it upright)</span></span>
             <input v-model="S.videoTurn" class="rv-switch" type="checkbox" />

@@ -94,6 +94,8 @@ export interface Settings {
   feedSound: boolean
   /** In full screen, the screen turns to a video's orientation (where the browser can lock it). */
   videoTurn: boolean
+  /** The browser's cast button on videos (Chrome shows one when a cast device is on the network). */
+  castButton: boolean
   infoPanel: boolean
   showNotes: boolean
   zoomMode: 'fit' | 'width' | 'actual'
@@ -160,6 +162,7 @@ export const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
   feedSound: false,
   videoTurn: true,
+  castButton: false,
   infoPanel: false,
   showNotes: true,
   zoomMode: 'fit',

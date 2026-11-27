@@ -518,6 +518,7 @@ function attachVideo() {
   el.muted = S.value.muted
   el.volume = S.value.volume
   el.playbackRate = rate.value
+  el.disableRemotePlayback = !S.value.castButton // (Settings › Gallery › Videos › Cast button)
   if (post.value?.sampleUrl) el.poster = post.value.sampleUrl
   else el.removeAttribute('poster')
   if (el.getAttribute('src') !== url) el.src = url

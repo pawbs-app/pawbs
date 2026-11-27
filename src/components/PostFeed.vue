@@ -317,6 +317,7 @@ watch(
             class="fill"
             :src="videoUrl(p) ?? undefined"
             :poster="p.sampleUrl ?? undefined"
+            :disableRemotePlayback="!settings.s.castButton"
             muted
             loop
             playsinline
@@ -451,7 +452,8 @@ watch(
   right: auto;
   left: calc(8px + env(safe-area-inset-left));
 }
-.rail .rv-icon-btn {
+/* (A button that is on, sound or a vote, keeps its inverted look: white, its icon dark.) */
+.rail .rv-icon-btn:not(.is-active) {
   background: var(--scrim-62);
 }
 .meta {
@@ -533,10 +535,16 @@ watch(
 </style>
 
 <style>
-/* While a feed is on screen, the page's scroll stops at each of its cards (PostFeed). */
+/* While a feed is on screen, the page's scroll stops at each of its cards (PostFeed). Its page's header
+   (title, Follow, the ⋯) scrolls away with the page instead of staying under the title bar: held
+   there, it covered the top of every post. */
 html.feed-snap {
   scroll-snap-type: y mandatory;
   scroll-padding-top: calc(var(--bar-h) + env(safe-area-inset-top));
   scroll-padding-bottom: var(--tabbar, 0px);
+}
+html.feed-snap .page-head {
+  position: relative;
+  top: auto;
 }
 </style>
