@@ -25,7 +25,7 @@ export async function writeData(data: Record<string, unknown>): Promise<void> {
       else writeJson(k, old)
     }
   }
-  for (const [k, v] of Object.entries(data)) {
+  for (const [k, v] of Object.entries(withBlacklistMemory(data))) {
     if (k === 'media-hosts' || v === undefined || !storable(k)) continue
     before.set(k, readJson<unknown>(k, undefined))
     if (!writeJson(k, v)) {
@@ -44,6 +44,19 @@ export async function writeData(data: Record<string, unknown>): Promise<void> {
     undo()
     throw e
   }
+}
+
+/** The blacklist's sync memory (services/blacklistSync: the account's list and this one as they were at
+    the last sync) holds only with the blacklist it was taken with. Data can bring one without the
+    other: a device whose blacklist was never set sends no blacklist, and this browser would keep its
+    own rules under the other device's memory, which the daily sync then reads as rules added here and
+    sends to the account. When the two would not match, the memory is forgotten: the next start
+    compares this blacklist with the account as at a sign-in, which never sends anything. */
+function withBlacklistMemory(data: Record<string, unknown>): Record<string, unknown> {
+  const text = data.blacklist !== undefined ? data.blacklist : readJson<string>('blacklist', '')
+  const memory = (data['blacklist:synced'] !== undefined ? data['blacklist:synced'] : readJson<unknown>('blacklist:synced', null)) as { here?: unknown } | null
+  if (!memory || memory.here === text) return data
+  return { ...data, 'blacklist:synced': null, 'blacklist:compared': [] }
 }
 
 /** A key as this app names what it stores: a short name of letters, digits and a few signs. A file
