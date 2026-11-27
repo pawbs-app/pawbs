@@ -450,10 +450,11 @@ export interface VoteResult {
   ourScore: number
 }
 
-export async function votePost(postId: number, score: 1 | -1): Promise<VoteResult> {
+/** `keep`: a vote already in that direction stays (no_unvote); without it, the same vote again takes it back. */
+export async function votePost(postId: number, score: 1 | -1, keep = false): Promise<VoteResult> {
   const r = await req<Record<string, number>>(`/posts/${postId}/votes.json`, {
     method: 'POST',
-    body: { score, no_unvote: 'false' },
+    body: { score, no_unvote: keep ? 'true' : 'false' },
     auth: true,
     ttl: 0,
   })

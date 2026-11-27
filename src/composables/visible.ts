@@ -16,7 +16,7 @@ export function useVisiblePosts(posts: Ref<Post[]>, opts: { keepHidden?: () => b
   // Posts seen before this list was entered, left out when Settings › Browsing says so (composables/seen).
   const mode = seenMode()
   const hiddenIds = computed(() => {
-    void blacklist.rules
+    void blacklist.active
     void blacklist.revealed
     void blacklist.enabled
     const s = new Set<number>()

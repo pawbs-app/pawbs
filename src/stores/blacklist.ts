@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { persistent } from './persist'
+import { useSettings } from './settings'
 import { parseRange, tokenize, type Token } from '@/query/syntax'
 import type { Post } from '@/api/types'
 
@@ -14,6 +15,9 @@ import type { Post } from '@/api/types'
 
 interface Rule {
   line: string
+  /** Its plain tags that must be there (no wildcard, no metatag): all of them in a search set it
+      aside on that search's results, when Settings › Blacklist says so. */
+  tags: string[]
   all: ((p: Post, tags: Set<string>) => boolean)[]
   none: ((p: Post, tags: Set<string>) => boolean)[]
   any: ((p: Post, tags: Set<string>) => boolean)[]
@@ -119,10 +123,11 @@ function compile(text: string): Rule[] {
   for (const raw of text.split('\n')) {
     const line = raw.trim()
     if (!line || line.startsWith('#')) continue
-    const rule: Rule = { line, all: [], none: [], any: [] }
+    const rule: Rule = { line, tags: [], all: [], none: [], any: [] }
     for (const t of tokenize(line)) {
       const f = predicate(t)
       if (!f) continue
+      if (!t.prefix && t.kind === 'tag' && !t.wildcard && !BLACKLIST_ONLY.test(t.name)) rule.tags.push(t.name)
       if (t.prefix === '-') rule.none.push(f)
       else if (t.prefix === '~') rule.any.push(f)
       else rule.all.push(f)
@@ -166,30 +171,105 @@ export const useBlacklist = defineStore('blacklist', () => {
   /** Kept in step with the account by itself: additions carry over both ways, removals ask. */
   const auto = persistent<boolean>('blacklist:auto', true)
   const rules = computed(() => compile(text.value))
-  // Results per post object, dropped whenever the rules change.
+
+  /* Lines switched off for this session (the list of what a page's blacklist caught, BlacklistHere):
+     their posts show until pawbs is closed, or the line is switched on again. Kept in the tab's
+     session storage, so a reload keeps them off. */
+  const OFF_KEY = 'ngg:blacklist-off'
+  const off = ref(new Set<string>(readOff()))
+  function readOff(): string[] {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(OFF_KEY) ?? '[]')
+      return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []
+    } catch {
+      return []
+    }
+  }
+  function setLine(line: string, on: boolean) {
+    const next = new Set(off.value)
+    if (on) next.delete(line)
+    else next.add(line)
+    off.value = next
+    try {
+      if (next.size) sessionStorage.setItem(OFF_KEY, JSON.stringify([...next]))
+      else sessionStorage.removeItem(OFF_KEY)
+    } catch {
+      /* not kept past a reload */
+    }
+  }
+  function allOn() {
+    for (const l of [...off.value]) setLine(l, true)
+  }
+
+  /** The plain tags of the search on screen (views/PostsView): with Settings › Blacklist › Show what
+      you search for, a line whose tags are all in it is set aside there. */
+  const searchTags = ref(new Set<string>())
+  function setSearch(q: string | null) {
+    const next = new Set<string>()
+    for (const t of q ? tokenize(q) : []) if (!t.prefix && t.kind === 'tag' && !t.wildcard) next.add(t.name)
+    if (next.size === searchTags.value.size && [...next].every((t) => searchTags.value.has(t))) return
+    searchTags.value = next
+  }
+  /** A line set aside by the search on screen. */
+  function searched(r: Rule): boolean {
+    return useSettings().s.blacklistSearched && r.tags.length > 0 && r.tags.every((t) => searchTags.value.has(t))
+  }
+
+  /** The rules in force: not switched off, not set aside by the search. */
+  const active = computed(() => {
+    void searchTags.value
+    void useSettings().s.blacklistSearched
+    return rules.value.filter((r) => !off.value.has(r.line) && !searched(r))
+  })
+
+  // Results per post object, dropped whenever the rules in force change.
   let memo = new WeakMap<Post, string | null>()
   let memoRules: Rule[] | null = null
+
+  function matches(r: Rule, post: Post, tags: Set<string>): boolean {
+    if (r.all.length && !r.all.every((f) => f(post, tags))) return false
+    if (r.none.some((f) => f(post, tags))) return false
+    if (r.any.length && !r.any.some((f) => f(post, tags))) return false
+    return true
+  }
 
   function match(post: Post): string | null {
     if (!enabled.value || !rules.value.length) return null
     if (revealed.value.has(post.id)) return null
-    if (memoRules !== rules.value) {
+    const list = active.value
+    if (memoRules !== list) {
       memo = new WeakMap()
-      memoRules = rules.value
+      memoRules = list
     }
     const hit = memo.get(post)
     if (hit !== undefined) return hit
     const tags = new Set(post.tags)
-    let out: string | null = null
-    for (const r of rules.value) {
-      if (r.all.length && !r.all.every((f) => f(post, tags))) continue
-      if (r.none.some((f) => f(post, tags))) continue
-      if (r.any.length && !r.any.some((f) => f(post, tags))) continue
-      out = r.line
-      break
-    }
+    const r = list.find((x) => matches(x, post, tags))
+    const out = r ? r.line : null
     memo.set(post, out)
     return out
+  }
+
+  /** What every line catches among `posts`, switched off or set aside or not (revealed posts
+      aside): how many posts any line catches, and the lines with a post, each with its count and
+      whether it is in force. */
+  function catches(posts: Post[]): { total: number; lines: { line: string; count: number; on: boolean; searched: boolean }[] } {
+    if (!enabled.value) return { total: 0, lines: [] }
+    const counts = new Map<Rule, number>()
+    let total = 0
+    for (const p of posts) {
+      if (revealed.value.has(p.id)) continue
+      const tags = new Set(p.tags)
+      let any = false
+      for (const r of rules.value) {
+        if (!matches(r, p, tags)) continue
+        counts.set(r, (counts.get(r) ?? 0) + 1)
+        any = true
+      }
+      if (any) total++
+    }
+    const lines = rules.value.filter((r) => counts.has(r)).map((r) => ({ line: r.line, count: counts.get(r)!, on: !off.value.has(r.line), searched: searched(r) }))
+    return { total, lines }
   }
 
   function reveal(id: number) {
@@ -213,5 +293,5 @@ export const useBlacklist = defineStore('blacklist', () => {
       .join('\n')
   }
 
-  return { text, enabled, rules, match, reveal, addLine, removeLine, revealed, conflict, compared, synced, auto }
+  return { text, enabled, rules, active, match, catches, reveal, addLine, removeLine, revealed, off, setLine, allOn, searchTags, setSearch, conflict, compared, synced, auto }
 })

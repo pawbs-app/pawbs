@@ -19,6 +19,10 @@ export interface Settings {
   gridFit: 'contain' | 'cover'
   pageSize: number
   blacklistMode: 'hide' | 'mask'
+  /** Masked: the gallery steps over them (the grid still shows them masked). */
+  skipBlacklisted: boolean
+  /** A blacklist line whose tags are all in the search is set aside on its results (stores/blacklist). */
+  blacklistSearched: boolean
   showThumbStats: boolean
   hoverPreload: boolean
   /** Moving the mouse across a video's thumbnail plays through it (the video loads while hovered). */
@@ -76,6 +80,8 @@ export interface Settings {
   filenamePattern: string
   syncRemoteFavorites: boolean
   sendAccountAlways: boolean
+  /** Saving a post to favourites votes it up on the account too. */
+  upvoteOnFavorite: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -86,6 +92,8 @@ export const DEFAULT_SETTINGS: Settings = {
   gridFit: 'contain',
   pageSize: 75,
   blacklistMode: 'hide',
+  skipBlacklisted: false,
+  blacklistSearched: false,
   showThumbStats: true,
   hoverPreload: true,
   hoverScrub: true,
@@ -124,6 +132,7 @@ export const DEFAULT_SETTINGS: Settings = {
   filenamePattern: '{id}-{artist}.{ext}',
   syncRemoteFavorites: true,
   sendAccountAlways: false,
+  upvoteOnFavorite: false,
 }
 
 export const useSettings = defineStore('settings', () => {

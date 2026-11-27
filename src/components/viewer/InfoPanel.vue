@@ -6,7 +6,8 @@ import Icon from '../Icon.vue'
 import ArtistLinks from '../ArtistLinks.vue'
 import type { Comment, Post, SimilarPost } from '@/api/types'
 import { TAG_CATEGORIES } from '@/api/types'
-import { getComments, getSimilarPosts, getWiki, votePost } from '@/api/endpoints'
+import { getComments, getSimilarPosts, getWiki } from '@/api/endpoints'
+import { useVotes } from '@/stores/votes'
 import { useMySets } from '@/stores/mySets'
 import { useCollections } from '@/stores/collections'
 import { useTagCache } from '@/stores/tagcache'
@@ -131,16 +132,13 @@ async function toggleWiki(tag: string) {
   }
 }
 
-// votes
-const vote = ref(0)
-const score = ref({ up: 0, down: 0, total: 0 })
+// votes: shared with the gallery's bar (stores/votes)
+const votes = useVotes()
+const vote = computed(() => votes.of(props.post).vote)
+const score = computed(() => votes.of(props.post))
 async function doVote(v: 1 | -1) {
-  const id = props.post.id
   try {
-    const r = await votePost(id, v)
-    if (props.post.id !== id) return // stepped meanwhile: this score is the previous post's
-    vote.value = r.ourScore
-    score.value = { up: r.up, down: r.down, total: r.score }
+    await votes.vote(props.post, v)
   } catch (e) {
     ui.toast((e as Error).message, { tone: 'bad' })
   }
@@ -161,8 +159,6 @@ watch(
     similar.value = null
     similarError.value = null
     similarLoading.value = false
-    vote.value = props.post.vote
-    score.value = { ...props.post.score }
   },
   { immediate: true },
 )
@@ -215,8 +211,8 @@ void router
           <span class="score">{{ score.total }}</span>
           <span class="muted"> · <span class="up">▲</span>{{ score.up }} <span class="down">▼</span>{{ Math.abs(score.down) }}</span>
           <span v-if="sites.hasAccount" class="votes">
-            <button class="rv-icon-btn sm" :class="{ 'is-active': vote > 0 }" type="button" title="Vote up" @click="doVote(1)"><Icon name="arrow-up" :size="12" /></button>
-            <button class="rv-icon-btn sm" :class="{ 'is-active': vote < 0 }" type="button" title="Vote down" @click="doVote(-1)"><Icon name="arrow-down" :size="12" /></button>
+            <button class="rv-icon-btn sm" :class="{ 'is-active': vote > 0 }" type="button" :title="vote > 0 ? 'Take back the vote up (V)' : 'Vote up (V)'" @click="doVote(1)"><Icon name="arrow-up" :size="12" /></button>
+            <button class="rv-icon-btn sm" :class="{ 'is-active': vote < 0 }" type="button" :title="vote < 0 ? 'Take back the vote down (Shift + V)' : 'Vote down (Shift + V)'" @click="doVote(-1)"><Icon name="arrow-down" :size="12" /></button>
           </span>
         </dd>
         <dt>Favourites</dt>

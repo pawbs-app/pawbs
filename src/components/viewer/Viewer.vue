@@ -22,6 +22,7 @@ import { useBlacklist } from '@/stores/blacklist'
 import { useHistory } from '@/stores/history'
 import { useSites } from '@/stores/sites'
 import { useTagCache } from '@/stores/tagcache'
+import { useVotes } from '@/stores/votes'
 import { useVisiblePosts } from '@/composables/visible'
 import { useViewerNav } from '@/composables/viewerNav'
 import { useIdle } from '@/composables/dom'
@@ -75,23 +76,26 @@ const full = shallowRef(new Map<number, Post>())
    that join the list (more pages loading) are added at the end; nothing else moves until it closes. */
 const order = shallowRef<Post[]>([])
 let orderOf: unknown = null
+const blacklist = useBlacklist()
+/* Masked posts, with Settings › Blacklist › Skip them in the gallery: left out of the steps (the grid
+   still shows them masked). The one opened stays, covered, until stepped from. */
+const stepped = (vis: Post[]) => (S.value.blacklistMode === 'mask' && S.value.skipBlacklisted ? vis.filter((p) => p.id === postId.value || !blacklist.match(p)) : vis)
 watch(
   [visible, feed],
   ([vis, f]) => {
     if (f !== orderOf || !order.value.length) {
       orderOf = f
-      order.value = vis
+      order.value = stepped(vis)
       return
     }
     const have = new Set(order.value.map((p) => p.id))
-    const added = vis.filter((p) => !have.has(p.id))
+    const added = stepped(vis.filter((p) => !have.has(p.id)))
     if (added.length) order.value = [...order.value, ...added]
   },
   { immediate: true },
 )
 // A post marked "not interested" leaves at once (the gallery steps on first when it is the one shown).
 const notInterested = useHidden()
-const blacklist = useBlacklist()
 watch(
   () => notInterested.ids,
   async (gone) => {
@@ -911,7 +915,13 @@ async function go(delta: number) {
   if (target >= list.value.length) {
     if (moreToLoad.value && feed.value) {
       endNote.value = 'Loading more…'
-      await feed.value.loadMore()
+      // A page can bring nothing to step to (all of it blacklisted or skipped): a few more are asked for.
+      for (let n = 0; n < 4; n++) {
+        const f = feed.value
+        if (!f) break
+        await f.loadMore()
+        if (!alive || index.value !== i || list.value.length > i + 1 || !moreToLoad.value || f.error.value) break
+      }
       endNote.value = ''
       if (!alive) return // closed while the page loaded: stepping now would open it again
       if (index.value !== i) return // stepped elsewhere while it loaded
@@ -938,7 +948,7 @@ function goTo(i: number) {
 
 // After each step: scroll back to the top, warm what comes next, load more when near the end.
 watch(
-  [index, () => list.value.length, stageW, stageH, () => S.value.preloadMode, zoom, () => blacklist.rules, () => blacklist.revealed],
+  [index, () => list.value.length, stageW, stageH, () => S.value.preloadMode, zoom, () => blacklist.active, () => blacklist.revealed],
   () => {
     const i = index.value
     const l = list.value
@@ -1053,6 +1063,28 @@ function openOriginal() {
 }
 async function copyLink() {
   if (post.value && (await actions.copyLink(post.value))) flash('Link copied')
+}
+async function sharePost() {
+  if (!post.value) return
+  const r = await actions.share(post.value)
+  if (r === 'copied') flash('Link copied')
+  else if (r === 'failed') flash('Could not share the link')
+}
+
+/* Votes, with the account: up and down in the bar (V, Shift + V), shared with the details panel
+   (stores/votes, which says why a press never takes back a vote it cannot see). */
+const votes = useVotes()
+const voteState = computed(() => (post.value ? votes.of(post.value) : null))
+const voting = computed(() => !!post.value && votes.busy.has(post.value.id))
+async function castVote(v: 1 | -1) {
+  const p = post.value
+  if (!p || !sites.hasAccount) return
+  try {
+    const now = await votes.vote(p, v)
+    if (post.value?.id === p.id) flash(now > 0 ? 'Voted up' : now < 0 ? 'Voted down' : 'Vote taken back')
+  } catch (e) {
+    ui.toast((e as Error).message, { tone: 'bad' })
+  }
 }
 
 /* Curating one post at a time from the keyboard. K: into the collection last added to (a toast with
@@ -1807,6 +1839,11 @@ useKeyLayer((e) => {
     case 'L':
       if (isVideo) toggleLoop()
       return true
+    case 'v':
+    case 'V':
+      if (!sites.hasAccount) return false
+      void castVote(e.shiftKey ? -1 : 1)
+      return true
     case 'n':
     case 'N':
       settings.s.showNotes = !S.value.showNotes
@@ -2126,9 +2163,20 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
         <button class="rv-icon-btn" :class="{ 'is-shaped': saved }" type="button" :title="saved ? 'Remove from favourites (S)' : 'Save to favourites (S)'" @click="toggleSave">
           <Icon :name="saved ? 'bookmark-on' : 'bookmark'" />
         </button>
+        <template v-if="sites.hasAccount && voteState">
+          <button class="rv-icon-btn" :class="{ 'is-active': voteState.vote > 0 }" type="button" :disabled="voting" :aria-pressed="voteState.vote > 0" :title="voteState.vote > 0 ? 'Take back the vote up (V)' : 'Vote up (V)'" @click="castVote(1)">
+            <Icon name="arrow-up" />
+          </button>
+          <span class="vote-score tabular hide-s" :title="`Score ${voteState.total}: ${voteState.up} up, ${Math.abs(voteState.down)} down`">{{ voteState.total }}</span>
+          <button class="rv-icon-btn hide-s" :class="{ 'is-active': voteState.vote < 0 }" type="button" :disabled="voting" :aria-pressed="voteState.vote < 0" :title="voteState.vote < 0 ? 'Take back the vote down (Shift + V)' : 'Vote down (Shift + V)'" @click="castVote(-1)">
+            <Icon name="arrow-down" />
+          </button>
+        </template>
         <button v-if="DOWNLOADS" class="rv-icon-btn" type="button" title="Download (D)" @click="download"><Icon name="download" /></button>
         <button class="rv-icon-btn hide-s" type="button" title="Open original (O)" @click="openOriginal"><Icon name="external" /></button>
         <button class="rv-icon-btn hide-s" type="button" title="Copy link (C)" @click="copyLink"><Icon name="link" /></button>
+        <!-- A phone has no Copy link in this row: its share sheet instead (the link copied where there is none). -->
+        <button class="rv-icon-btn show-s" type="button" :title="actions.canShare ? 'Share' : 'Copy link'" @click="sharePost"><Icon :name="actions.canShare ? 'share' : 'link'" /></button>
         <button
           class="rv-icon-btn slide-btn"
           :class="{ 'is-active': slideshow }"
@@ -2583,6 +2631,14 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
     }
   }
 }
+/* The score between the vote buttons; the vote cast is the button's lit state. */
+.vote-score {
+  min-width: 2.5ch;
+  padding: 0 2px;
+  text-align: center;
+  font-size: 0.6875rem;
+  color: var(--hud-text);
+}
 .sep {
   width: 1px;
   align-self: stretch;
@@ -2819,7 +2875,13 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
     bottom: 104px;
   }
 }
+.show-s {
+  display: none;
+}
 @container stage (max-width: 560px) {
+  .show-s {
+    display: inline-flex;
+  }
   .rv-hud .tl {
     max-width: calc(100% - 70px);
   }
@@ -2842,6 +2904,10 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
     display: none;
   }
   .bar.is-video .slide-btn {
+    display: none;
+  }
+  /* Nor Share, for a video: it is in the long-press menu (and the details' links). */
+  .bar.is-video .show-s {
     display: none;
   }
 }

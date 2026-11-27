@@ -545,6 +545,10 @@ void DEFAULT_SETTINGS
               <span>Send the account with every request <span class="faint">(shows your votes and hidden posts; one extra round trip per new search)</span></span>
               <input v-model="S.sendAccountAlways" class="rv-switch" type="checkbox" />
             </label>
+            <label class="rv-setting">
+              <span>Vote up what you save to favourites <span class="faint">(on the account; a vote is never taken back by it)</span></span>
+              <input v-model="S.upvoteOnFavorite" class="rv-switch" type="checkbox" />
+            </label>
             <div class="row sp">
               <RouterLink class="rv-btn rv-btn--sm" to="/settings/blacklist"><Icon name="eye-off" />Blacklist with the account…</RouterLink>
               <RouterLink class="rv-btn rv-btn--sm" to="/favorites"><Icon name="bookmark" />Import favourites…</RouterLink>
@@ -792,6 +796,18 @@ void DEFAULT_SETTINGS
                 { value: 'mask', label: 'Masked' },
               ]"
             />
+          </div>
+          <label v-if="S.blacklistMode === 'mask'" class="rv-setting">
+            <span>Skip them in the gallery <span class="faint">(the grid still shows them masked)</span></span>
+            <input v-model="S.skipBlacklisted" class="rv-switch" type="checkbox" />
+          </label>
+          <label class="rv-setting">
+            <span>Show what you search for <span class="faint">(a line whose tags are all in the search is set aside on its results)</span></span>
+            <input v-model="S.blacklistSearched" class="rv-switch" type="checkbox" />
+          </label>
+          <div v-if="blacklist.off.size" class="row sp wrap">
+            <span class="rv-hint">{{ blacklist.off.size }} {{ blacklist.off.size === 1 ? 'line is' : 'lines are' }} switched off until pawbs is closed: {{ [...blacklist.off].join(', ') }}.</span>
+            <button class="rv-btn rv-btn--sm" type="button" @click="blacklist.allOn()">All back on</button>
           </div>
           <BlacklistSync v-if="sites.hasAccount" />
           <div v-else-if="guestMissing.length" class="row sp wrap">

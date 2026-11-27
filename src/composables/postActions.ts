@@ -67,6 +67,22 @@ export function usePostActions() {
     const u = postUrl(p)
     return !!u && (await copyText(u))
   }
+  /** The system's share sheet, where there is one (phones, some computers). */
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+  /** The post's link to another app through the share sheet, or copied where there is none. */
+  async function share(p: Post): Promise<'shared' | 'copied' | 'cancelled' | 'failed'> {
+    const u = postUrl(p)
+    if (!u) return 'failed'
+    if (canShare) {
+      try {
+        await navigator.share({ url: u, title: `#${p.id} on ${sites.active?.name ?? 'the site'}` })
+        return 'shared'
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return 'cancelled'
+      }
+    }
+    return (await copyText(u)) ? 'copied' : 'failed'
+  }
   async function copyFile(p: Post): Promise<boolean> {
     return !!p.fileUrl && (await copyText(p.fileUrl))
   }
@@ -93,6 +109,13 @@ export function usePostActions() {
       ...(DOWNLOADS ? [{ label: 'Download', icon: 'download', hint: 'D', disabled: !p.fileUrl, run: () => download(p) }] : []),
       'sep',
       { label: 'Copy link to the post', icon: 'link', hint: 'C', disabled: !sites.active, run: async () => say((await copyLink(p)) ? 'Link copied' : 'Could not copy the link') },
+      ...(canShare
+        ? [{ label: 'Share…', icon: 'share', disabled: !sites.active, run: async () => {
+            const r = await share(p)
+            if (r === 'copied') say('Link copied')
+            else if (r === 'failed') say('Could not share the link')
+          } }]
+        : []),
       { label: 'Copy file address', icon: 'copy', disabled: !p.fileUrl, run: async () => say((await copyFile(p)) ? 'File address copied' : 'Could not copy the address') },
       { label: 'Open the original file', icon: 'external', hint: 'O', disabled: !p.fileUrl, run: () => openOriginal(p) },
       { label: sites.active ? `Open on ${sites.active.name}` : 'Open on the site', icon: 'external', disabled: !sites.active, run: () => openOnSite(p) },
@@ -131,5 +154,5 @@ export function usePostActions() {
     ]
   }
 
-  return { postUrl, download, openOriginal, openOnSite, copyLink, copyFile, postEntries, notInterested }
+  return { postUrl, download, openOriginal, openOnSite, copyLink, copyFile, canShare, share, postEntries, notInterested }
 }

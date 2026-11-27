@@ -43,6 +43,7 @@ const groups = [
       ['M  L', 'Video: mute / loop'],
       ['A', 'Video: A-B loop: start, end, off'],
       ['S', 'Save to favourites'],
+      ['V', 'With an account: vote up (Shift: down); the same again takes it back'],
       ['K', 'Add to the collection last added to'],
       ['Shift + K', 'Add to a collection…'],
       ['X', 'Not interested: hide it, on to the next'],

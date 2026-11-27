@@ -4,6 +4,7 @@ import { persistentScoped } from './persist'
 import { useSites } from './sites'
 import { useSettings } from './settings'
 import { useUi } from './ui'
+import { useVotes } from './votes'
 import { fromSnapshot, toSnapshot, type Snapshot } from '@/api/snapshot'
 import type { Post } from '@/api/types'
 import { addRemoteFavorite, removeRemoteFavorite } from '@/api/endpoints'
@@ -115,6 +116,12 @@ export const useFavorites = defineStore('favorites', () => {
     }
     add(post)
     setRemote(post.id, true)
+    // Settings › Account › Vote up what you save: an up vote on the account too (never one taken back).
+    if (sites.hasAccount && useSettings().s.upvoteOnFavorite) {
+      useVotes()
+        .upvote(post)
+        .catch((e: Error) => useUi().toast(`Saved, but the vote up did not go through: ${e.message}`, { tone: 'warn' }))
+    }
     return true
   }
 

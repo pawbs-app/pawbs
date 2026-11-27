@@ -15,6 +15,8 @@ import { DOWNLOADS } from '@/features'
 import Icon from '@/components/Icon.vue'
 import ArtistLinks from '@/components/ArtistLinks.vue'
 import JumpDateDialog from '@/components/JumpDateDialog.vue'
+import BlacklistHere from '@/components/BlacklistHere.vue'
+import { useBlacklist } from '@/stores/blacklist'
 import { useTagCache } from '@/stores/tagcache'
 import { cachedFeed, effectiveQuery, searchFeed, type Feed } from '@/services/feed'
 import { useSettings } from '@/stores/settings'
@@ -88,6 +90,17 @@ watch(
   { immediate: true },
 )
 onActivated(() => feed.value && gallery.setFeed(feed.value))
+
+/* The blacklist on this page: what it caught, line by line (BlacklistHere), and the search's own tags,
+   which may set lines aside here (Settings › Blacklist › Show what you search for). */
+const blacklist = useBlacklist()
+const blacklistOpen = ref(false)
+/** Something to list: posts caught, or lines switched off or set aside. */
+const blacklistShown = computed(() => hiddenCount.value > 0 || blacklist.active.length < blacklist.rules.length)
+watch(query, (q) => blacklist.setSearch(q), { immediate: true })
+onActivated(() => blacklist.setSearch(query.value))
+onDeactivated(() => blacklist.setSearch(null))
+onBeforeUnmount(() => blacklist.setSearch(null))
 
 /* A followed tag or search: its new posts carry NEW and, newest first, a line parts them from the
    ones seen before. They count as seen once the page is left (another page, another search, the app
@@ -194,6 +207,16 @@ useRefresh(reload)
       >
         <Icon name="calendar" /><span class="lbl">{{ since ? since : 'Date' }}</span>
       </button>
+      <button
+        v-if="blacklistShown"
+        class="rv-icon-btn tb"
+        :class="{ 'is-active': blacklist.active.length < blacklist.rules.length }"
+        type="button"
+        :title="hiddenCount ? `Blacklisted here: ${hiddenCount} ${hiddenCount === 1 ? 'post' : 'posts'}, line by line…` : 'Blacklist lines switched off or set aside…'"
+        @click="blacklistOpen = true"
+      >
+        <Icon name="eye-off" /><span class="lbl">Blacklisted</span>
+      </button>
       <button class="rv-icon-btn tb" type="button" title="Reload" @click="reload"><Icon name="retry" /><span class="lbl">Reload</span></button>
       <GridTools />
       <PageMore />
@@ -234,6 +257,7 @@ useRefresh(reload)
 
     <BulkSaveDialog v-if="bulk" :posts="posts" :title="query || 'latest'" @close="bulk = false" />
     <JumpDateDialog v-if="jumping" :query="query" @close="jumping = false" @go="jumpTo" />
+    <BlacklistHere v-if="blacklistOpen" :posts="posts" @close="blacklistOpen = false" />
   </div>
 </template>
 

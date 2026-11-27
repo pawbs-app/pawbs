@@ -30,6 +30,7 @@ const ICONS: Record<string, string[]> = {
   'bookmark-on': ['f:M3.5 1.5h9v13L8 11l-4.5 3.5z'],
   external: ['M9.5 1.5h5v5M14.5 1.5l-6.5 6.5M12.5 9.5v5h-11v-11h5'],
   link: ['M6.5 9.5l3-3', 'M7 4.5l1.5-1.5a2.8 2.8 0 0 1 4 4L11 8.5M9 11.5L7.5 13a2.8 2.8 0 0 1-4-4L5 7.5'],
+  share: ['M8 10V1.5M4.5 5L8 1.5 11.5 5', 'M5 7.5H2.5v7h11v-7H11'],
   grid: ['M1.5 1.5h5v5h-5zM9.5 1.5h5v5h-5zM1.5 9.5h5v5h-5zM9.5 9.5h5v5h-5z'],
   rows: ['M1.5 2.5h13v4h-13zM1.5 9.5h6v4h-6zM10.5 9.5h4v4h-4z'],
   columns: ['M1.5 1.5h3.5v8h-3.5zM6.25 1.5h3.5v5h-3.5zM11 1.5h3.5v10H11zM1.5 11.5h3.5v3h-3.5zM6.25 8.5h3.5v6h-3.5z'],
