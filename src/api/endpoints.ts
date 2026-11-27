@@ -17,6 +17,7 @@ import {
 import type { ArtistInfo, Comment, Note, Pool, Post, PostSet, SearchTrend, SimilarPost, TagInfo, UserInfo, WikiPage } from './types'
 import { useSites } from '@/stores/sites'
 import { useSettings } from '@/stores/settings'
+import { siteHealth } from '@/services/siteHealth'
 
 export const MAX_LIMIT = 320
 
@@ -60,27 +61,47 @@ function aboutOwnAccount(tags: string): boolean {
     guests (searchPosts): searches there go with the account from then on, rather than each page being
     asked twice. */
 const withheldFromGuests = new Set<string>()
+const refusedKey = (e: unknown) => e instanceof ApiError && e.status === 401
 
 export async function searchPosts(tags: string, p: PageRequest = {}): Promise<Post[]> {
   const url = site().url
-  const files = p.files !== false
-  const signedIn = useSites().hasAccount
+  const own = aboutOwnAccount(tags)
+  // The account sent for the files only, never when the site has just refused its key (an expired or
+  // deleted one: services/siteHealth says so until another key is entered).
+  const forFiles = p.files !== false && useSites().hasAccount && !(siteHealth.kind === 'auth' && siteHealth.site === url)
   const opts: RequestOptions = {
     params: { tags: tags.trim(), limit: Math.min(p.limit ?? 75, MAX_LIMIT), page: p.page },
     signal: p.signal,
     priority: p.priority ?? Priority.User,
     ttl: p.ttl ?? 30_000,
-    auth: aboutOwnAccount(tags) || (files && signedIn && withheldFromGuests.has(url)) || undefined,
+    auth: own || (forFiles && withheldFromGuests.has(url)) || undefined,
   }
-  const posts = normalizePostList(await req<unknown>('/posts.json', opts), url)
+  let posts: Post[]
+  try {
+    posts = normalizePostList(await req<unknown>('/posts.json', opts), url)
+  } catch (e) {
+    // Sent with the account for its files alone, and the key refused: the page as guests see it,
+    // rather than none (the site's notice says why some files are missing).
+    if (!own && opts.auth && refusedKey(e)) {
+      withheldFromGuests.delete(url)
+      return normalizePostList(await req<unknown>('/posts.json', { ...opts, auth: false }), url)
+    }
+    throw e
+  }
   // Signed in, but the page went without the account (Settings › Sites: the account with every request
   // off): posts the site withholds from guests came without their files, and would be left out. The
   // same page again with the account, as the site shows it to that account; and the next searches on
   // this site go with it straight away (most pages hold such posts once one has).
   const sent = opts.auth ?? useSettings().s.sendAccountAlways
-  if (!sent && files && signedIn && posts.some((x) => !x.fileUrl && !x.deleted)) {
-    withheldFromGuests.add(url)
-    return normalizePostList(await req<unknown>('/posts.json', { ...opts, auth: true }), url)
+  if (!sent && forFiles && posts.some((x) => !x.fileUrl && !x.deleted)) {
+    try {
+      const full = normalizePostList(await req<unknown>('/posts.json', { ...opts, auth: true }), url)
+      withheldFromGuests.add(url)
+      return full
+    } catch (e) {
+      if (refusedKey(e)) return posts // (as above: the guest's page)
+      throw e
+    }
   }
   return posts
 }
