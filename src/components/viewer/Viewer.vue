@@ -1918,7 +1918,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
         @contextmenu="onStageMenu"
       >
         <div ref="canvas" class="canvas" :style="{ minWidth: `max(100%, ${disp.w}px)`, minHeight: `max(100%, ${disp.h}px)` }">
-          <div v-if="post" :key="post.id" class="media cur" :class="['k-' + post.kind, { 'is-unblurred': unblurred === post.id }]" :style="{ width: disp.w + 'px', height: disp.h + 'px' }">
+          <div v-if="post" :key="post.id" class="media cur" :class="['k-' + post.kind, { 'is-unblurred': unblurred === post.id, 'is-shown': mainReady && !mainFailed }]" :style="{ width: disp.w + 'px', height: disp.h + 'px' }">
             <div v-if="blacklisted" class="nofile">
               <div class="rv-panel rv-brackets">
                 <div class="rv-label">Blacklisted</div>
@@ -2361,6 +2361,13 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
 .ph {
   object-fit: fill;
   image-rendering: auto;
+}
+/* The picture itself shown: its preview goes, once the picture has faded in over it. Under a picture
+   with a transparent background it showed through, and under an animated one (a GIF, an animated
+   PNG or WebP) its still frame stayed behind the moving one. */
+.media.is-shown .ph {
+  opacity: 0;
+  transition: opacity 0s linear 0.2s;
 }
 .main {
   opacity: 0;
