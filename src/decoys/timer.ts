@@ -8,7 +8,7 @@ const CSS = `
 @media (prefers-color-scheme:dark){.dk-timer{--bg:#121212;--track:#2a2a28;--chip:#2a2a28;--text:#f1efe8;--muted:#a8a69d}}
 .dk-timer h1{align-self:stretch;margin:0;padding:18px;font-size:26px;font-weight:600}
 .dk-timer .dial{position:relative;width:min(72vw,300px);aspect-ratio:1;margin-top:4vh}
-.dk-timer svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.dk-timer .dial svg{position:absolute;inset:0;transform:rotate(-90deg)}
 .dk-timer .time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:2px;font-size:clamp(40px,13vw,60px);font-weight:300;font-variant-numeric:tabular-nums}
 .dk-timer .time input{all:unset;width:1.25em;text-align:center;border-radius:10px;user-select:text;-webkit-user-select:text}
 .dk-timer .time input:focus{background:var(--chip)}
@@ -16,8 +16,8 @@ const CSS = `
 .dk-timer .chips button{all:unset;padding:7px 14px;border-radius:16px;background:var(--chip);font-size:14px;cursor:pointer}
 .dk-timer .ctl{margin-top:auto;margin-bottom:calc(36px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:36px}
 .dk-timer .ctl button{all:unset;display:grid;place-items:center;border-radius:50%;cursor:pointer}
-.dk-timer .reset{width:56px;height:56px;background:var(--chip);color:var(--muted)}
-.dk-timer .go{width:76px;height:76px;background:var(--accent);color:#fff}
+.dk-timer .ctl .reset{width:56px;height:56px;background:var(--chip);color:var(--muted)}
+.dk-timer .ctl .go{width:76px;height:76px;background:var(--accent);color:#fff}
 `
 const PLAY = '<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
 const PAUSE = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>'
@@ -75,11 +75,17 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
     f.onchange = () => setTo(read())
   }
 
+  /* The button's icon, changed only when it changes: pressing Start first commits a field being
+     edited (setTo, stop), and an icon redrawn under the finger would lose the click. */
+  function face(label: 'Start' | 'Pause') {
+    if (go.getAttribute('aria-label') === label) return
+    go.innerHTML = label === 'Start' ? PLAY : PAUSE
+    go.setAttribute('aria-label', label)
+  }
   function stop() {
     if (tick) clearInterval(tick)
     tick = 0
-    go.innerHTML = PLAY
-    go.setAttribute('aria-label', 'Start')
+    face('Start')
     mm.readOnly = ss.readOnly = false
   }
   function ring() {
@@ -113,8 +119,7 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
     if (left <= 0) return
     endAt = Date.now() + left * 1000
     mm.readOnly = ss.readOnly = true
-    go.innerHTML = PAUSE
-    go.setAttribute('aria-label', 'Pause')
+    face('Pause')
     tick = window.setInterval(() => {
       left = Math.max(0, (endAt - Date.now()) / 1000)
       show()
