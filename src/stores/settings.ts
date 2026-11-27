@@ -67,6 +67,8 @@ export interface Settings {
   idleDelay: number
   /** The mouse pointer goes with the controls when they hide (the gallery). */
   hideCursor: boolean
+  /** Phones: Share (or Copy link) in the gallery's bar. */
+  galleryShare: boolean
   /** Slideshow: seconds a picture stays (a video plays to its end). */
   slideshowSeconds: number
   infoPanel: boolean
@@ -123,6 +125,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wheelAction: 'zoom',
   idleDelay: 2500,
   hideCursor: true,
+  galleryShare: true,
   slideshowSeconds: 6,
   infoPanel: false,
   showNotes: true,

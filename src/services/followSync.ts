@@ -23,6 +23,7 @@
 import { nextTick } from 'vue'
 import { aliasTarget, listSubscriptions, searchPosts, subscribeTags, unsubscribeTag, type Subscription } from '@/api/endpoints'
 import { Priority } from '@/api/client'
+import type { Post } from '@/api/types'
 import { useFollows, type Follow } from '@/stores/follows'
 import { useSites } from '@/stores/sites'
 import { useSettings } from '@/stores/settings'
@@ -227,7 +228,7 @@ const MAX_PAGES = 4
  * Returns the follows it settled; the others (their last seen post lies below the pages read) are
  * left to the usual check.
  */
-export async function countSynced(fs: Follow[], cap: number): Promise<Map<Follow, { fresh: number; newest: number }>> {
+export async function countSynced(fs: Follow[], cap: number, shown: (p: Post) => boolean = () => true): Promise<Map<Follow, { fresh: number; newest: number }>> {
   const out = new Map<Follow, { fresh: number; newest: number }>()
   const watched = fs.filter((f) => f.synced && f.lastSeen > 0)
   if (!watched.length) return out
@@ -243,11 +244,13 @@ export async function countSynced(fs: Follow[], cap: number): Promise<Map<Follow
     const posts = await searchPosts(`search:subscriptions id:>${oldest}${flash}`, { limit: PAGE, page, priority: Priority.Idle, ttl: 0 })
     for (const p of posts) {
       lowest = Math.min(lowest, p.id)
+      // What the blacklist hides does not count as new.
+      const visible = shown(p)
       for (const t of p.tags)
         for (const f of byTag.get(t) ?? []) {
           if (p.id <= f.lastSeen) continue
           const c = counts.get(f)!
-          c.fresh++
+          if (visible) c.fresh++
           c.newest = Math.max(c.newest, p.id)
         }
     }

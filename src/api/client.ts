@@ -64,8 +64,11 @@ interface Job {
 
 /* Token bucket: about two requests a second, with a small burst. On top of it, never more than two
    requests start within any second: the sites' hard limit (the burst alone let three through at
-   once). */
+   once). What runs in the background (follow checks, tag categories, pages loaded ahead) keeps to
+   one a second, the pace the sites ask clients to hold for long; what the person waits for passes
+   ahead of it in the queue. */
 const PER_SECOND = 2
+const BACKGROUND_GAP_MS = 1000
 class Scheduler {
   private queue: Job[] = []
   private tokens = 3
@@ -80,6 +83,8 @@ class Scheduler {
   private readonly maxActive = 4
   /** When the requests of the last second started. */
   private starts: number[] = []
+  /** When the last background request started. */
+  private lastBackground = -Infinity
 
   schedule(priority: number, run: () => Promise<void>, signal: AbortSignal | undefined, drop: () => void): void {
     const job: Job = {
@@ -133,6 +138,9 @@ class Scheduler {
       let wait = 0
       if (this.tokens < 1) wait = Math.ceil((1 - this.tokens) / this.ratePerMs)
       if (this.starts.length >= PER_SECOND) wait = Math.max(wait, Math.ceil(this.starts[0] + 1000 - now))
+      // (The queue is sorted: a background job first means only background jobs wait.)
+      const background = this.queue[0].priority >= Priority.Background
+      if (background) wait = Math.max(wait, Math.ceil(this.lastBackground + BACKGROUND_GAP_MS - now))
       if (wait > 0) {
         // A sooner turn (the second's oldest start expiring before the bucket refills) moves the timer up.
         if (this.timer == null || now + wait < this.due) {
@@ -147,6 +155,7 @@ class Scheduler {
       }
       this.tokens -= 1
       this.starts.push(now)
+      if (background) this.lastBackground = now
       const job = this.queue.shift()!
       job.run()
     }

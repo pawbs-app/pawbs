@@ -2176,7 +2176,7 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
         <button class="rv-icon-btn hide-s" type="button" title="Open original (O)" @click="openOriginal"><Icon name="external" /></button>
         <button class="rv-icon-btn hide-s" type="button" title="Copy link (C)" @click="copyLink"><Icon name="link" /></button>
         <!-- A phone has no Copy link in this row: its share sheet instead (the link copied where there is none). -->
-        <button class="rv-icon-btn show-s" type="button" :title="actions.canShare ? 'Share' : 'Copy link'" @click="sharePost"><Icon :name="actions.canShare ? 'share' : 'link'" /></button>
+        <button v-if="S.galleryShare" class="rv-icon-btn show-s" type="button" :title="actions.canShare ? 'Share' : 'Copy link'" @click="sharePost"><Icon :name="actions.canShare ? 'share' : 'link'" /></button>
         <button
           class="rv-icon-btn slide-btn"
           :class="{ 'is-active': slideshow }"
@@ -2879,8 +2879,9 @@ const progress = computed(() => (vDur.value ? (vTime.value / vDur.value) * 100 :
   display: none;
 }
 @container stage (max-width: 560px) {
+  /* (As any icon button: a grid with its icon in the middle.) */
   .show-s {
-    display: inline-flex;
+    display: grid;
   }
   .rv-hud .tl {
     max-width: calc(100% - 70px);

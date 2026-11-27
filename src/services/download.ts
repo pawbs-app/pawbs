@@ -268,6 +268,10 @@ export function saveLinkList(items: { post: Post; name: string }[], fileBase: st
   saveBlob(new Blob([lines.join('\n') + '\n'], { type: 'text/plain' }), `${fileBase}${format === 'aria2' ? '.aria2' : ''}.txt`)
 }
 
+export function saveText(text: string, name: string) {
+  saveBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), name)
+}
+
 export function saveJson(data: unknown, name: string) {
   saveBlob(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), name)
 }

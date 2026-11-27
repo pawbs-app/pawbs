@@ -698,6 +698,10 @@ void DEFAULT_SETTINGS
             <input v-model="S.hideCursor" class="rv-switch" type="checkbox" />
           </label>
           <label class="rv-setting">
+            <span>Share button in the bar on phones <span class="faint">(Share… stays in a post’s long-press menu)</span></span>
+            <input v-model="S.galleryShare" class="rv-switch" type="checkbox" />
+          </label>
+          <label class="rv-setting">
             <span>Slideshow: each picture stays <span class="faint">(P in the gallery, or its slideshow button; a video plays to its end)</span></span>
             <select v-model.number="S.slideshowSeconds" class="rv-select w120">
               <option :value="3">3 s</option>

@@ -177,6 +177,26 @@ export function searchFeed(query: string, opts: SearchOptions): Feed {
   })
 }
 
+/** Several searches as one list, newest first: the Following stream past what one search takes. Each
+    page asks every search for its posts below the cursor. Above the highest of the lowest ids of the
+    searches that filled their page, nothing can be missing: that part is the page, and the rest is
+    asked for again with the next one. Searches sorted otherwise than by id do not belong here. */
+export function mergedFeed(queries: string[], opts: SearchOptions): Feed {
+  const full = queries.map((q) => effectiveQuery(q, opts))
+  return createFeed(`merged:${full.join(' | ')}`, queries.join(' | '), async ({ lastId, signal, first, priority }) => {
+    const limit = first ? Math.min(FIRST_PAGE, opts.pageSize) : Math.max(opts.pageSize, 75)
+    const pages = await Promise.all(full.map((q) => searchPosts(q, { limit, page: lastId ? `b${lastId}` : undefined, signal, priority })))
+    const byId = new Map<number, Post>()
+    let floor = 0
+    for (const list of pages) {
+      for (const p of list) byId.set(p.id, p)
+      if (list.length >= limit) floor = Math.max(floor, Math.min(...list.map((p) => p.id)))
+    }
+    const posts = [...byId.values()].filter((p) => p.id >= floor).sort((a, b) => b.id - a.id)
+    return { posts, done: floor === 0 }
+  })
+}
+
 /** A list kept elsewhere (favourites, history, a sorted pool) exposed as a feed that follows it. */
 export function refFeed(key: string, title: string, source: Ref<Post[]>): Feed & { stop: () => void } {
   const f = createFeed(key, title, async () => ({ posts: [], done: true }))

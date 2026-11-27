@@ -13,12 +13,13 @@ import { useGallery } from '@/stores/gallery'
 import { useSites } from '@/stores/sites'
 import { useSettings } from '@/stores/settings'
 import { useViewerNav } from '@/composables/viewerNav'
-import { cachedFeed, effectiveQuery, searchFeed, type Feed } from '@/services/feed'
+import { cachedFeed, effectiveQuery, mergedFeed, searchFeed, type Feed } from '@/services/feed'
 import { tooManyTerms } from '@/query/syntax'
 import { useInbox } from '@/composables/inbox'
 import InboxRows from '@/components/InboxRows.vue'
 import FollowSyncPanel from '@/components/FollowSyncPanel.vue'
 import FollowsDroppedNotice from '@/components/FollowsDroppedNotice.vue'
+import FollowListDialog from '@/components/FollowListDialog.vue'
 import { markSubscriptionsSeen } from '@/api/endpoints'
 
 const route = useRoute()
@@ -29,35 +30,44 @@ const settings = useSettings()
 const nav = useViewerNav()
 
 /* One stream of everything followed that posts can be searched by: each tag as ~tag, each search as
-   a group ~( … ), up to what one search takes (a couple of terms are left for the filters added to
-   every search). A sorted search (order:) is not newest first and stays out, and so does one with
-   its own ~ terms or groups (a ~ inside a group matches nothing). */
+   a group ~( … ), in searches of what one search takes (a couple of terms are left for the filters
+   added to every search), merged into one list when there are several (services/feed, mergedFeed;
+   each page asks every one of them, so there are at most MAX_STREAM_SEARCHES). A sorted search
+   (order:) is not newest first and stays out, and so does one with its own ~ terms or groups (a ~
+   inside a group matches nothing). */
+const MAX_STREAM_SEARCHES = 6
 const streamParts = computed(() => {
-  const parts: string[] = []
+  const chunks: string[][] = [[]]
   let left = 0
   // Synced with the account: every synced tag in one term (services/followSync), up to 500 of them.
   const synced = new Set(follows.sync.on && sites.hasAccount ? follows.shown.filter((f) => f.synced && !f.removedOnAccount) : [])
-  if (synced.size) parts.push('~search:subscriptions')
+  if (synced.size) chunks[0].push('~search:subscriptions')
   for (const f of follows.shown) {
     if (synced.has(f)) continue
     const search = follows.kindOf(f) === 'search'
     if (search && /(^|\s)-?order:|(^|\s)~|[()]/i.test(f.tag)) continue
     const part = search ? `~( ${f.tag} )` : `~${f.tag}`
-    if (tooManyTerms([...parts, part, 'a', 'b'].join(' '))) {
+    // (A search too long for any: left out.)
+    if (tooManyTerms([part, 'a', 'b'].join(' '))) {
       left++
       continue
     }
-    parts.push(part)
+    let cur = chunks[chunks.length - 1]
+    if (tooManyTerms([...cur, part, 'a', 'b'].join(' '))) {
+      if (chunks.length >= MAX_STREAM_SEARCHES) {
+        left++
+        continue
+      }
+      cur = []
+      chunks.push(cur)
+    }
+    cur.push(part)
   }
-  return { parts, left }
+  // One part alone: as it is (a ~ alone, or a lone group, would be odd to show as the query).
+  const asQuery = (parts: string[]) => (parts.length === 1 ? parts[0].replace(/^~\(\s*|\s*\)$/g, '').replace(/^~/, '') : parts.join(' '))
+  return { queries: chunks.filter((c) => c.length).map(asQuery), left }
 })
-const combined = computed(() => {
-  const { parts } = streamParts.value
-  if (!parts.length) return ''
-  // One alone: as it is (a ~ alone, or a lone group, would be odd to show as the query).
-  if (parts.length === 1) return parts[0].replace(/^~\(\s*|\s*\)$/g, '').replace(/^~/, '')
-  return parts.join(' ')
-})
+const combined = computed(() => streamParts.value.queries.join(' | '))
 const inbox = useInbox()
 const feed = shallowRef<Feed | null>(null)
 watch(
@@ -71,7 +81,11 @@ watch(
       return
     }
     const opts = { pageSize: settings.s.pageSize, defaultFilter: settings.s.defaultFilter, blockFlash: settings.s.blockFlash }
-    const f = cachedFeed(`following:${sites.scope}:${effectiveQuery(q, opts)}`, () => searchFeed(q, opts))
+    const queries = streamParts.value.queries
+    const f =
+      queries.length === 1
+        ? cachedFeed(`following:${sites.scope}:${effectiveQuery(q, opts)}`, () => searchFeed(q, opts))
+        : cachedFeed(`following:${sites.scope}:${queries.map((x) => effectiveQuery(x, opts)).join(' | ')}`, () => mergedFeed(queries, opts))
     feed.value = f
     gallery.setFeed(f)
     if (!f.posts.value.length && !f.done.value) void f.loadMore()
@@ -80,6 +94,8 @@ watch(
 )
 onActivated(() => feed.value && gallery.setFeed(feed.value))
 
+/** The list as text, in or out (components/FollowListDialog). */
+const listDialog = ref<'import' | 'export' | null>(null)
 const adding = ref<string[]>([])
 /** Typed or pasted tags: all followed at once, and the field is clear for the next ones. */
 function onAdd(tags: string[]) {
@@ -120,7 +136,11 @@ useRefresh(() => {
         </div>
         <InboxRows v-if="inbox.entries.value.length" :entries="inbox.entries.value" tools slim />
         <p class="rv-hint">Searches, artists and pools can be followed from their own pages (Follow, or a pool's bookmark). Checks run here, in this browser: when pawbs opens or comes back to the screen if the last is half an hour old, and with Check now. What a follow shows counts as seen once you leave its results.</p>
-        <p v-if="streamParts.left" class="rv-hint warn">{{ streamParts.left }} {{ streamParts.left === 1 ? 'follow is' : 'follows are' }} not in the stream: one search takes at most 40 terms.</p>
+        <p v-if="streamParts.left" class="rv-hint warn">{{ streamParts.left }} {{ streamParts.left === 1 ? 'follow is' : 'follows are' }} not in the stream: it merges at most {{ MAX_STREAM_SEARCHES }} searches of 40 terms.</p>
+        <div class="row wrap">
+          <button class="rv-btn rv-btn--sm" type="button" @click="listDialog = 'import'"><Icon name="plus" />Import…</button>
+          <button class="rv-btn rv-btn--sm" type="button" :disabled="!follows.list.length" @click="listDialog = 'export'"><Icon name="download" />Export…</button>
+        </div>
         <FollowSyncPanel />
       </aside>
       <section class="stream">
@@ -143,6 +163,7 @@ useRefresh(() => {
         </div>
       </section>
     </div>
+    <FollowListDialog v-if="listDialog" :mode="listDialog" @close="listDialog = null" />
   </div>
 </template>
 

@@ -9,6 +9,9 @@ import { usePoolLibrary } from './poolLibrary'
 import { searchPosts } from '@/api/endpoints'
 import { Priority } from '@/api/client'
 import { countSynced, syncFollows, type SyncReport } from '@/services/followSync'
+import { countGrouped, type Count } from '@/services/followGroups'
+import { useBlacklist } from './blacklist'
+import type { Post } from '@/api/types'
 
 export interface Follow {
   /** What is followed: a tag, or a whole search (any query, since 1.15.0). */
@@ -255,6 +258,19 @@ export const useFollows = defineStore('follows', () => {
   }
 
   const pools = usePoolLibrary()
+  /** A new post counts unless the blacklist hides it (in either mode). */
+  const blacklist = useBlacklist()
+  const unhidden = (p: Post) => !blacklist.match(p)
+  /** Counts from a search that settled several follows at once. */
+  function apply(settled: Map<Follow, Count>) {
+    for (const [f, c] of settled) {
+      const cur = list.value.find((x) => x.tag === f.tag)
+      if (!cur) continue
+      cur.fresh = c.fresh
+      cur.checkedAt = Date.now()
+      if (c.newest) cur.newest = Math.max(cur.newest ?? 0, c.newest)
+    }
+  }
   async function check(force = false) {
     if (checking.value || (!list.value.length && !pools.list.length) || !sites.active) return
     checking.value = true
@@ -272,19 +288,27 @@ export const useFollows = defineStore('follows', () => {
           const settled = await countSynced(
             targets.filter((f) => f.synced && !f.removedOnAccount),
             CHECK_LIMIT,
+            unhidden,
           )
           if (sites.scope !== at) return
-          for (const [f, c] of settled) {
-            const cur = list.value.find((x) => x.tag === f.tag)
-            if (!cur) continue
-            cur.fresh = c.fresh
-            cur.checkedAt = Date.now()
-            if (c.newest) cur.newest = Math.max(cur.newest ?? 0, c.newest)
-          }
+          apply(settled)
           targets = targets.filter((f) => !settled.has(f))
         } catch {
           /* the search failed: every follow checked on its own below */
         }
+      }
+      // Plain tags the site knows: counted in groups (services/followGroups), the rest one by one below.
+      try {
+        const settled = await countGrouped(
+          targets.filter((f) => isPlainTag(f.tag) && (tagcache.count(f.tag) ?? 0) > 0),
+          CHECK_LIMIT,
+          unhidden,
+        )
+        if (sites.scope !== at) return
+        apply(settled)
+        targets = targets.filter((f) => !settled.has(f))
+      } catch {
+        /* a group failed: its follows checked on their own below */
       }
       for (const f of targets) {
         // The site was switched: these follows (and their counts) belong to the other one.
@@ -304,7 +328,8 @@ export const useFollows = defineStore('follows', () => {
           const posts = await searchPosts(`${f.tag} id:>${f.lastSeen}${flash}`, { limit: CHECK_LIMIT, priority: Priority.Idle, ttl: 0 })
           const cur = sites.scope === at ? list.value.find((x) => x.tag === f.tag) : undefined
           if (cur) {
-            cur.fresh = posts.length
+            // What the blacklist hides does not count (a full page means more than the cap anyway).
+            cur.fresh = posts.length >= CHECK_LIMIT ? CHECK_LIMIT : posts.filter(unhidden).length
             cur.checkedAt = Date.now()
             if (posts.length) cur.newest = Math.max(cur.newest ?? 0, ...posts.map((p) => p.id))
           }
