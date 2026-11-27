@@ -30,6 +30,7 @@ import { useTagCache } from '@/stores/tagcache'
 import { useUi } from '@/stores/ui'
 import { allKeys, clearAll, removeKey, storageBackend, storageBytes, vaultMeta } from '@/stores/persist'
 import PrivacySettings from '@/components/PrivacySettings.vue'
+import DisguiseSettings from '@/components/DisguiseSettings.vue'
 import { useLayout } from '@/composables/layout'
 import { probeSite, verifyAccount } from '@/api/endpoints'
 import { keyPages } from '@/utils/apiKeys'
@@ -947,6 +948,7 @@ void DEFAULT_SETTINGS
       <!-- Data -->
       <template v-else-if="section === 'privacy'">
         <PrivacySettings />
+        <DisguiseSettings />
       </template>
 
       <template v-else-if="section === 'data'">
@@ -1054,6 +1056,7 @@ void DEFAULT_SETTINGS
           </dl>
           <div class="row sp wrap">
             <button v-if="canInstall" class="rv-btn rv-btn--sm rv-btn--primary" type="button" @click="install"><Icon name="install" />Install app</button>
+            <RouterLink class="rv-btn rv-btn--sm" to="/settings/privacy?disguise=1"><Icon name="lock" />Install in disguise…</RouterLink>
             <button class="rv-btn rv-btn--sm" type="button" @click="ui.shortcutsOpen = true"><Icon name="key" />Keyboard shortcuts</button>
           </div>
           <!-- The static pages (site/pages.mjs), in a new tab: the installed app stays where it is. -->

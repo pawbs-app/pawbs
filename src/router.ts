@@ -2,12 +2,15 @@ import { createRouter, createWebHashHistory, type RouteLocationNormalized } from
 import { useSites } from '@/stores/sites'
 import { useSelection } from '@/stores/selection'
 import { takeBack } from '@/services/backClose'
+import { pageTitle, startRoute, traceless } from '@/services/traceless'
+import { createTracelessHistory } from '@/services/tracelessHistory'
 import HomeView from '@/views/HomeView.vue'
 import PostsView from '@/views/PostsView.vue'
 
 /* Hash history: the build works on any static host without rewrite rules. The viewer is an overlay
    driven by the "post" query on whichever list is showing, so closing it returns to the grid
-   exactly as it was. */
+   exactly as it was. With no trace in the browser's history (Settings › Privacy, or a disguise), the
+   address never changes: the route lives in the history entries' state (services/tracelessHistory). */
 
 const lazy = {
   favorites: () => import('@/views/FavoritesView.vue'),
@@ -52,7 +55,7 @@ window.addEventListener('popstate', () => {
 })
 
 export const router = createRouter({
-  history: createWebHashHistory(),
+  history: traceless ? createTracelessHistory(startRoute()) : createWebHashHistory(),
   routes: [
     { path: '/', name: 'home', component: HomeView, meta: { title: 'Home' } },
     { path: '/posts', name: 'posts', component: PostsView, meta: { title: 'Search' } },
@@ -147,7 +150,7 @@ router.afterEach((to) => {
   const whole = typeof to.query.q === 'string' && to.query.q ? to.query.q : ''
   // (A tab's title, a history entry: a very long query is cut.)
   const q = whole.length > 80 ? whole.slice(0, 77) + '…' : whole
-  document.title = q ? `${q} · ${BRAND}` : to.name === 'home' || to.name === 'setup' ? FULL_TITLE : title ? `${title} · ${BRAND}` : BRAND
+  pageTitle(q ? `${q} · ${BRAND}` : to.name === 'home' || to.name === 'setup' ? FULL_TITLE : title ? `${title} · ${BRAND}` : BRAND)
 })
 
 /** Warm the lazily loaded views once the first screen is up. */

@@ -4,6 +4,7 @@
    text (to copy it). On touch screens a long press opens the same menu. */
 import { shallowRef } from 'vue'
 import { isTyping } from './keyboard'
+import { appRoute, openTraceless, traceless } from './traceless'
 
 export interface MenuItem {
   label: string
@@ -80,7 +81,10 @@ export function closeMenu() {
   menu.value = null
 }
 
-/** Open an app address (a router href) or a URL in a new tab. */
+/** Open an app address (a router href) or a URL in a new tab (with no trace in the history, a page
+    of the app is handed over to it rather than put in its address: services/traceless). */
 export function openInNewTab(href: string) {
+  const route = traceless ? appRoute(href) : null
+  if (route) return openTraceless(route)
   window.open(href, '_blank', 'noopener')
 }

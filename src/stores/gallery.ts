@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type { Feed } from '@/services/feed'
+import { router } from '@/router'
 
 /* The list the viewer steps through: whichever grid is on screen registers its feed here, with the
    page it belongs to. The viewer ignores a feed left by another page: opened on a page still loading
@@ -18,7 +19,7 @@ export const useGallery = defineStore('gallery', () => {
   return { feed, path, setFeed }
 })
 
-/** The route path now (hash history: "#/posts?q=…" → "/posts"). */
+/** The route path now (from the router: with no trace in the history, the address has none). */
 function currentPath(): string {
-  return decodeURI(location.hash.replace(/^#/, '').split('?')[0] || '/')
+  return router.currentRoute.value.path || '/'
 }

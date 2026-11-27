@@ -207,7 +207,7 @@ export const pages = [
     nav: 'Install',
     title: 'Install pawbs, the e621 app for iPhone, Android and PC',
     description: 'Install pawbs, a free e621 and e926 app (PWA), on iPhone, iPad, Android, Windows, macOS, Linux or ChromeOS in three steps. No app store, no sideloading.',
-    updated: '2026-11-24',
+    updated: '2026-11-27',
     crumb: 'Install',
     h1: 'Install pawbs, the e621 app, on any device',
     lede: 'pawbs is a progressive web app (PWA): you add it from the browser in a few taps, with no app store and no sideloading. Once installed, it opens in its own window, starts offline and updates itself.',
@@ -242,7 +242,10 @@ export const pages = [
   <li>Optionally, turn on <b>Use an account</b> and enter your e621 user name and API key, to see your favourites and sets.</li>
   <li>Tap <b>Browse</b>. For e621, confirm that you are 18 or older (asked once on each device). That’s it.</li>
 </ol>
-<p class="note">Already using pawbs on another device? Choose <b>From another device</b> on the first screen, and send everything over with a QR code from the other device’s Settings › Data.</p>`,
+<p class="note">Already using pawbs on another device? Choose <b>From another device</b> on the first screen, and send everything over with a QR code from the other device’s Settings › Data.</p>
+
+<h2>In disguise</h2>
+<p>pawbs can also be installed as an ordinary-looking calculator, notes or timer, under a name and colour you choose. It opens on one that works, and on pawbs only with your code: typed then <b>=</b> on the calculator, as a note’s first line, or as the time the timer starts from. It leaves nothing in the browser’s history and shows no count on its icon. In pawbs, open <b>Settings › Privacy › Disguise</b> (or <b>Install in disguise</b> in the menu) and pick one; its page then offers to install it.</p>`,
   },
   {
     slug: 'faq',

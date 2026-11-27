@@ -33,10 +33,16 @@ import {
   type VaultMethod,
 } from '@/services/vault'
 import { lockNow, refreshVaultOn } from '@/services/lock'
+import { setTraceless, traceless } from '@/services/traceless'
+import { disguise } from '@/services/disguise'
+import { useRoute } from 'vue-router'
 
 const settings = useSettings()
 const S = settings.s
 const ui = useUi()
+const route = useRoute()
+/** What the address bar shows with no trace in the history: the site itself. */
+const siteAddress = location.host
 
 const meta = ref<VaultMeta | null>(vaultMeta())
 const on = computed(() => !!meta.value)
@@ -374,6 +380,15 @@ function switchVerify(to: Flow['verifyWith']) {
       <span>Private session <span class="faint">(nothing added to the history, the posts seen or the recent searches until turned off)</span></span>
       <input v-model="S.pauseHistory" class="rv-switch" type="checkbox" />
     </label>
+  </section>
+
+  <section class="block">
+    <h2 class="rv-heading rv-label">Browser history</h2>
+    <label class="rv-setting">
+      <span>Leave no trace in the browser’s history <span class="faint">(the address stays {{ siteAddress }} and the tab’s title {{ disguise ? disguise.name : 'pawbs' }}, whatever is open: no searches, tags or posts in the history or the address bar’s suggestions; Back still works. On this device; pawbs reloads to switch{{ disguise ? '. A disguise is always this way' : '' }})</span></span>
+      <input class="rv-switch" type="checkbox" :checked="traceless" :disabled="!!disguise" @change="setTraceless(($event.target as HTMLInputElement).checked, route.fullPath)" />
+    </label>
+    <p v-if="traceless" class="rv-hint">Your keyboard may still learn words typed in pawbs (Android lets apps opt out, not web pages); a phone keyboard’s incognito mode, or picking tags from the suggestions, avoids that.</p>
   </section>
 
   <section class="block">

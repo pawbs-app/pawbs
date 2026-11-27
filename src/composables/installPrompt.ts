@@ -12,6 +12,7 @@
    open: Install shows those steps). Never once installed, or when running as the installed app. */
 import { computed, ref } from 'vue'
 import { useInstall } from './install'
+import { disguise } from '@/services/disguise'
 
 const KEY = 'nggallery.installPrompt'
 const SNOOZE_DAYS = 7
@@ -55,7 +56,8 @@ export function useInstallPrompt() {
   const ios = isIosBrowser()
 
   /** Installing is possible here and now. */
-  const possible = computed(() => !installed.value && (!!canInstall.value || ios))
+  // (Never "Install pawbs" inside a disguise, services/disguise: it is installed as what it is.)
+  const possible = computed(() => !disguise && !installed.value && (!!canInstall.value || ios))
   /** The user asked not to hear about it (for good, or for now). */
   const quiet = computed(() => !!choice.value.never || (choice.value.snoozeUntil ?? 0) > now.value)
   /** The green square on Settings and the notice atop it. */

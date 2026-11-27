@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!--DISGUISE-HEAD-->
+    <style>
+      html, body { margin: 0; }
+      html:not(.app-on), html:not(.app-on) body { background: #ffffff; }
+      @media (prefers-color-scheme: dark) { html:not(.app-on), html:not(.app-on) body { background: #121212; } }
+    </style>
+  </head>
+  <body>
+    <div id="decoy"></div>
+    <div id="app" hidden></div>
+    <script type="module" src="/src/disguise.ts"></script>
+  </body>
+</html>

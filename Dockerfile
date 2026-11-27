@@ -29,6 +29,7 @@ COPY deploy/nginx-main.conf /etc/nginx/nginx.conf
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/headers.conf /etc/nginx/nggallery-headers.conf
 COPY deploy/sync.js /etc/nginx/nggallery-sync.js
+COPY deploy/disguise.js /etc/nginx/nggallery-disguise.js
 COPY deploy/errors/ /etc/nginx/nggallery-errors/
 COPY deploy/check/ /etc/nginx/nggallery-check/
 COPY --from=build /app/dist /usr/share/nginx/html

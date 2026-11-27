@@ -34,6 +34,7 @@ import { pickImageUrl, videoCandidates } from '@/services/media'
 import { effectsOn } from '@/services/zoomFx'
 import { openMenu } from '@/services/contextMenu'
 import { buzz } from '@/services/haptics'
+import { pageTitle } from '@/services/traceless'
 import { turnFor, unturn } from '@/services/screenTurn'
 import { clearMedia, mediaPosition, showMedia } from '@/services/mediaSession'
 import { prettyTag } from '@/query/syntax'
@@ -1060,7 +1061,7 @@ watch(
   (p) => {
     if (dwell != null) clearTimeout(dwell)
     if (!p) return
-    document.title = `#${p.id} · pawbs`
+    pageTitle(`#${p.id} · pawbs`)
     rememberMediaHost(p.fileUrl)
     dwell = window.setTimeout(() => {
       history.record(p)

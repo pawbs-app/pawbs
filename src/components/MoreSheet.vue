@@ -7,6 +7,7 @@ import Icon from './Icon.vue'
 import { useUi } from '@/stores/ui'
 import { useInstall } from '@/composables/install'
 import { useInstallPrompt } from '@/composables/installPrompt'
+import { disguise as disguised } from '@/services/disguise'
 import SiteRows from './SiteRows.vue'
 import { lockNow, vaultOn } from '@/services/lock'
 import { useBlacklist } from '@/stores/blacklist'
@@ -17,6 +18,7 @@ const router = useRouter()
 const ui = useUi()
 const blacklist = useBlacklist()
 const { canInstall, install } = useInstall()
+const disguise = disguised
 const installPrompt = useInstallPrompt()
 
 const places = [
@@ -48,6 +50,10 @@ function doInstall() {
     <button v-if="canInstall" class="sheet-row" type="button" @click="doInstall">
       <Icon name="install" :size="18" />
       <span class="grow"><span>Install app</span><span class="sub">pawbs on the home screen, full screen, offline</span></span>
+    </button>
+    <button v-if="!disguise" class="sheet-row" type="button" @click="go('/settings/privacy?disguise=1')">
+      <Icon name="lock" :size="18" />
+      <span class="grow"><span>Install in disguise</span><span class="sub">As a calculator, notes or a timer that opens pawbs with your code</span></span>
     </button>
     <button v-if="vaultOn" class="sheet-row" type="button" @click="lockNow">
       <Icon name="lock" :size="18" />

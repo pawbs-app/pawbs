@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import pkg from './package.json' with { type: 'json' }
 import siteSlugs from './site/slugs.json' with { type: 'json' }
 import { devSyncRelay } from './deploy/sync-dev'
+import disguise from './deploy/disguise.js'
 
 /* The version the app shows and stores: package.json's, or the pre-release label CI gives a build of
    the `beta` branch between releases ("1.16.16-beta.3", APP_VERSION). */
@@ -26,6 +27,34 @@ function productionHeaders(): Record<string, string> {
    leaves these addresses to the network (navigateFallbackDenylist below), or an installed app would
    answer them with itself. */
 const sitePage = new RegExp(`^/(${siteSlugs.join('|')})(\\.html|/)?(\\?.*)?$`)
+/* Disguises' pages and manifests (/as/<kind>/…, src/services/disguise.ts) for `vite` and `vite
+   preview`: the same code nginx runs (deploy/disguise.js), on as.html. */
+function disguisePages(): Plugin {
+  type Next = () => void
+  const serve = async (url: string | undefined, res: import('node:http').ServerResponse, next: Next, template: () => Promise<string>) => {
+    const m = url?.match(/^\/as\/([a-z]+)\/(manifest\.webmanifest)?(?:\?(.*))?$/)
+    if (!m) return next()
+    const query = m[3] ?? ''
+    const body = m[2] ? disguise.manifestFor(m[1], query) : disguise.pageFor(await template(), m[1], query)
+    if (!body) return next()
+    res.setHeader('Content-Type', m[2] ? 'application/manifest+json' : 'text/html; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.end(typeof body === 'string' ? body : JSON.stringify(body))
+  }
+  return {
+    name: 'disguise-pages',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        void serve(req.url, res, next, () => server.transformIndexHtml(req.url ?? '/', readFileSync(new URL('./as.html', import.meta.url), 'utf8')))
+      })
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        void serve(req.url, res, next, async () => readFileSync(new URL('./dist/as.html', import.meta.url), 'utf8'))
+      })
+    },
+  }
+}
 function sitePagesPreview(): Plugin {
   return {
     name: 'site-pages-preview',
@@ -60,6 +89,16 @@ export default defineConfig({
     // first paint (Lighthouse "render-blocking requests"). All of it is ~15 KB compressed.
     cssCodeSplit: false,
     sourcemap: false,
+    rollupOptions: {
+      // The app's page, and a disguise's (as.html, src/disguise.ts): it loads its decoy, and the app
+      // only once unlocked.
+      input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), as: fileURLToPath(new URL('./as.html', import.meta.url)) },
+      output: {
+        // Each decoy (src/decoys/) its own file, named so the service worker leaves them out of what
+        // it stores ahead (only the one in use is kept, once used).
+        chunkFileNames: (c) => (c.facadeModuleId && /[\\/]src[\\/]decoys[\\/]/.test(c.facadeModuleId) ? 'assets/decoy-[name]-[hash].js' : 'assets/[name]-[hash].js'),
+      },
+    },
   },
   plugins: [
     vue(),
@@ -71,6 +110,7 @@ export default defineConfig({
     },
     // The device transfer relay for local runs (nginx runs deploy/sync.js in production).
     devSyncRelay(),
+    disguisePages(),
     sitePagesPreview(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -109,27 +149,46 @@ export default defineConfig({
         ],
         // The installed app in the system's share sheet (Android, Chromium browsers): a link shared from
         // another app opens here (App.vue: shared links). Nothing goes through the server.
+        // Posted (to the service worker, public/share-target.js), not sent in the address: a shared
+        // link leaves nothing in the browser's history.
         share_target: {
-          action: './',
-          method: 'GET',
-          params: { title: 'share-title', text: 'share-text', url: 'share-url' },
+          action: './share-target',
+          method: 'POST',
+          enctype: 'application/x-www-form-urlencoded',
+          params: { title: 'title', text: 'text', url: 'url' },
         },
       },
       workbox: {
         // The app shell is precached; everything from the site's API and file host stays live.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,txt}'],
-        // The link preview picture is for other sites (social networks, chat apps), not the app.
-        globIgnores: ['**/og-image.png'],
+        // The link preview picture is for other sites (social networks, chat apps), not the app; a
+        // disguise's page, decoys and icons only for a disguise, kept once used (runtimeCaching).
+        globIgnores: ['**/og-image.png', 'as.html', 'as/**', 'assets/decoy-*.js', 'assets/as-*.js'],
         navigateFallback: 'index.html',
         // The relay's addresses and the check page (deploy/check/) are the server's, never the app's:
         // opened in the browser (to pass the CDN's check), they must reach the network. Workbox matches
         // these against the path and the query: an address with "/sync/" in its query passes too.
-        navigateFallbackDenylist: [/\/sync\//, /^[^?]*\/check($|\?)/, sitePage],
+        navigateFallbackDenylist: [/\/sync\//, /^[^?]*\/check($|\?)/, sitePage, /^\/as\//],
         cleanupOutdatedCaches: true,
         // A new version activates at once and takes over open pages, which then reload on it.
         skipWaiting: true,
         clientsClaim: true,
-        runtimeCaching: [],
+        // A disguise (src/services/disguise.ts): its page from the server, kept for a start offline;
+        // its decoy, its entry and its icons, kept once used.
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && url.pathname.startsWith('/as/'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'disguise-pages', networkTimeoutSeconds: 4, expiration: { maxEntries: 8 } },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/as/') || /^\/assets\/(decoy-|as-)/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'disguise-files', expiration: { maxEntries: 40 } },
+          },
+        ],
+        // Links shared from other apps (the manifest's share_target, posted): public/share-target.js.
+        importScripts: ['share-target.js'],
       },
       devOptions: { enabled: false },
     }),

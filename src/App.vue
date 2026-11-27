@@ -39,6 +39,7 @@ import { useInbox } from './composables/inbox'
 import AgeGate from './components/AgeGate.vue'
 import TabBar from './components/TabBar.vue'
 import { checkOwnServer, onCheckPassed } from './services/held'
+import { disguise } from './services/disguise'
 
 const route = useRoute()
 // Seen posts (composables/seen): another page or query is a new list; the gallery opening over one is not.
@@ -141,7 +142,8 @@ function submitAssistant(q: string) {
 
 // Locking (encryption on: Settings › Privacy) and the cover in the app switcher (services/lock).
 refreshVaultOn()
-startLock(() => ({ idle: settings.s.lockIdle, hidden: settings.s.lockHidden, cover: settings.s.coverHidden }))
+// (A disguise is always covered in the app switcher: its preview would show pawbs.)
+startLock(() => ({ idle: settings.s.lockIdle, hidden: settings.s.lockHidden, cover: settings.s.coverHidden || !!disguise }))
 
 // Paste to open (utils/pasted): a post's number or link, a pool's or a search's link, pasted anywhere
 // but in a field, opens it.
@@ -155,15 +157,31 @@ function onPaste(e: ClipboardEvent) {
 }
 onMounted(() => document.addEventListener('paste', onPaste))
 
-/* Shared from another app: the installed app is a share target (the manifest's share_target), opened
-   at ./?share-url=…&share-text=…&share-title=…. The first e621 or e926 link in what came opens, as a
-   pasted one would; the address is put back without it. */
+/* Shared from another app: the installed app is a share target (the manifest's share_target). What
+   came is posted to the service worker (public/share-target.js), never put in an address, and the
+   app opens at ./?shared=<id>; an older install may still send it in the address
+   (./?share-url=…&share-text=…&share-title=…). The first e621 or e926 link in it opens, as a pasted
+   one would; the address is put back without it either way. */
 const SHARED = ['share-url', 'share-text', 'share-title']
-onMounted(() => {
+onMounted(async () => {
   const q = new URLSearchParams(location.search)
-  if (!SHARED.some((k) => q.has(k))) return
-  const said = SHARED.map((k) => q.get(k) ?? '').join(' ')
-  history.replaceState(history.state, '', location.pathname + location.hash)
+  const id = q.get('shared')
+  if (!id && !SHARED.some((k) => q.has(k))) return
+  let said = SHARED.map((k) => q.get(k) ?? '').join(' ')
+  if (id && /^\d+$/.test(id)) {
+    try {
+      const cache = await caches.open('share-target')
+      const res = await cache.match(`/share-target/${id}`)
+      said = res ? await res.text() : ''
+      void cache.delete(`/share-target/${id}`)
+    } catch {
+      said = ''
+    }
+  }
+  for (const k of [...SHARED, 'shared']) q.delete(k)
+  const rest = q.toString()
+  history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash)
+  if (!said.trim()) return
   const to = (said.match(/https?:\/\/\S+/g) ?? [said.trim()]).map((l) => pastedTarget(l, sites.active?.url, false)).find((t) => !!t)
   if (to) void appRouter.push(to)
   else ui.toast('Shared with pawbs: not a link to a post, a search, a pool or a set on e621 or e926', { tone: 'warn', ms: 7000 })
@@ -224,7 +242,8 @@ onMounted(() => {
   )
   // New posts of followed tags on the installed app's icon (Chromium; elsewhere nothing happens).
   const badge = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
-  if (badge.setAppBadge)
+  // (Never on a disguise's icon: a count there would give it away.)
+  if (badge.setAppBadge && !disguise)
     watch(
       () => (settings.s.appBadge ? inbox.total.value : 0),
       (n) => void (n > 0 ? badge.setAppBadge!(n) : badge.clearAppBadge?.())?.catch(() => {}),

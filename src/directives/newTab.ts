@@ -5,6 +5,7 @@
 import type { Directive } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { router } from '@/router'
+import { openTraceless, traceless } from '@/services/traceless'
 
 type Target = RouteLocationRaw | null | undefined
 type El = HTMLElement & { _newTab?: { to: Target; off: () => void } }
@@ -15,6 +16,8 @@ export function appHref(to: RouteLocationRaw): string {
 }
 
 export function openNewTab(to: RouteLocationRaw) {
+  // (No trace in the history: the page is handed over to the new tab, not put in its address.)
+  if (traceless) return openTraceless(typeof to === 'string' && to.startsWith('#') ? to.slice(1) : router.resolve(to).fullPath)
   window.open(appHref(to), '_blank', 'noopener')
 }
 

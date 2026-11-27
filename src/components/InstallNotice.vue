@@ -15,15 +15,17 @@ const prompt = useInstallPrompt()
     <div class="rv-notice-body">
       <div class="rv-label">Install pawbs</div>
       <template v-if="prompt.iosSteps.value">
-        <p>In Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>. pawbs then opens from its icon, full screen, like any other app.</p>
+        <p>In Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>. pawbs then opens from its icon, full screen, like any other app. It can also be added in disguise, as a calculator, notes or a timer.</p>
         <div class="row">
           <button class="rv-btn rv-btn--sm" type="button" @click="(prompt.iosSteps.value = false), prompt.notNow()">Done</button>
+          <RouterLink class="rv-btn rv-btn--sm" to="/settings/privacy?disguise=1" @click="prompt.iosSteps.value = false">In disguise…</RouterLink>
         </div>
       </template>
       <template v-else>
-        <p>pawbs works as an app: its own window and icon, a start even offline, and updates on its own. No store, nothing else to download.</p>
+        <p>pawbs works as an app: its own window and icon, a start even offline, and updates on its own. No store, nothing else to download. Or install it in disguise, as a calculator, notes or a timer that opens pawbs with your code.</p>
         <div class="row">
           <button class="rv-btn rv-btn--sm rv-btn--primary" type="button" @click="prompt.install()"><Icon name="install" />Install</button>
+          <RouterLink class="rv-btn rv-btn--sm" to="/settings/privacy?disguise=1">In disguise…</RouterLink>
           <button class="rv-btn rv-btn--sm" type="button" @click="prompt.notNow()">Not now</button>
           <button class="rv-btn rv-btn--sm" type="button" @click="prompt.never()">Don’t ask again</button>
         </div>

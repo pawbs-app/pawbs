@@ -181,6 +181,15 @@ smoke-test:
       grep -qi '^x-content-type-options: nosniff' headers.txt
       curl -fsSI http://app:8080/sw.js | grep -i '^cache-control: no-cache' > /dev/null
       curl -fsSI http://app:8080/manifest.webmanifest | grep -i '^content-type: application/manifest+json' > /dev/null
+      # Disguises (deploy/disguise.js): the page and manifest made from the address, nothing of pawbs in the page.
+      curl -fsS 'http://app:8080/as/calculator/?name=My%20Calc&color=1d9e75' > as.html
+      grep -q '<title>My Calc</title>' as.html
+      grep -q 'manifest.webmanifest?name=My%20Calc&amp;color=1d9e75' as.html
+      if grep -qi 'pawbs' as.html; then echo "A disguise's page names pawbs"; exit 1; fi
+      curl -fsS 'http://app:8080/as/calculator/manifest.webmanifest?name=My%20Calc&color=1d9e75' | jq -e '.name == "My Calc" and .id == "/as/calculator/?name=My%20Calc&color=1d9e75"' > /dev/null
+      curl -fsSI http://app:8080/as/icons/calculator-1d9e75-192.png | grep -i '^content-type: image/png' > /dev/null
+      test "$(curl -sS -o /dev/null -w '%{http_code}' http://app:8080/as/unknown/)" = 404
+      test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://app:8080/share-target)" = 303
       ASSET=$(curl -fsS http://app:8080/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1)
       test -n "$ASSET"
       curl -fsSI "http://app:8080/$ASSET" | grep -i '^cache-control: public, max-age=31536000, immutable' > /dev/null
