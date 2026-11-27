@@ -1,4 +1,5 @@
-/* No trace in the browser's history (Settings › Privacy, chosen per device): the address stays the
+/* No trace in the browser's history (Settings › Privacy: on by default in the installed app, off in
+   a browser tab unless chosen, each its own choice on a device): the address stays the
    same whatever page is open, the route living in each history entry's state instead
    (services/tracelessHistory); the tab's title stays "pawbs" (or a disguise's name); a reload stays
    on its page (the browser keeps an entry's state); a new tab gets its page through a one-time
@@ -8,23 +9,45 @@ import { disguise } from './disguise'
 
 // (Not under "ngg:": pawbs's own storage takes those keys over at its start, stores/persist; these
 // are read before it.)
-const KEY = 'traceless'
+const KEY = 'traceless' // in a browser tab: "1" when on (off unless chosen)
+const APP_KEY = 'traceless-app' // in the installed app: "0" when off (on unless chosen)
 const OPEN = 'tl-open:'
+
+/** Running as the installed app, in a window of its own, rather than in a browser tab. */
+export const installedWindow: boolean = (() => {
+  try {
+    return (
+      ['standalone', 'window-controls-overlay', 'minimal-ui'].some((m) => matchMedia(`(display-mode: ${m})`).matches) ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
+    )
+  } catch {
+    return false
+  }
+})()
 
 function readFlag(): boolean {
   try {
-    return localStorage.getItem(KEY) === '1'
+    // A tab opened from a page without a trace (its hand-over, below) stays that way while it lives,
+    // reloads included, whatever this browser's own setting.
+    if (new URLSearchParams(location.search).has('tl-open')) sessionStorage.setItem(KEY, '1')
+    if (sessionStorage.getItem(KEY) === '1') return true
+    return installedWindow ? localStorage.getItem(APP_KEY) !== '0' : localStorage.getItem(KEY) === '1'
   } catch {
-    return false
+    return installedWindow
   }
 }
 
 export const traceless: boolean = !!disguise || readFlag()
 
-/** Switched on or off: the page reloads on the other kind of history, on the same page. */
+/** Switched on or off (in the installed app or in the browser, each its own choice): the page
+    reloads on the other kind of history, on the same page. */
 export function setTraceless(on: boolean, fullPath: string): void {
   try {
-    if (on) localStorage.setItem(KEY, '1')
+    sessionStorage.removeItem(KEY)
+    if (installedWindow) {
+      if (on) localStorage.removeItem(APP_KEY)
+      else localStorage.setItem(APP_KEY, '0')
+    } else if (on) localStorage.setItem(KEY, '1')
     else localStorage.removeItem(KEY)
   } catch {
     return

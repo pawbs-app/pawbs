@@ -33,7 +33,7 @@ import {
   type VaultMethod,
 } from '@/services/vault'
 import { lockNow, refreshVaultOn } from '@/services/lock'
-import { setTraceless, traceless } from '@/services/traceless'
+import { installedWindow, setTraceless, traceless } from '@/services/traceless'
 import { disguise } from '@/services/disguise'
 import { useRoute } from 'vue-router'
 
@@ -385,7 +385,7 @@ function switchVerify(to: Flow['verifyWith']) {
   <section class="block">
     <h2 class="rv-heading rv-label">Browser history</h2>
     <label class="rv-setting">
-      <span>Leave no trace in the browser’s history <span class="faint">(the address stays {{ siteAddress }} and the tab’s title {{ disguise ? disguise.name : 'pawbs' }}, whatever is open: no searches, tags or posts in the history or the address bar’s suggestions; Back still works. On this device; pawbs reloads to switch{{ disguise ? '. A disguise is always this way' : '' }})</span></span>
+      <span>Leave no trace in the browser’s history <span class="faint">(the address stays {{ siteAddress }} and the tab’s title {{ disguise ? disguise.name : 'pawbs' }}, whatever is open: no searches, tags or posts in the history or the address bar’s suggestions; Back still works. {{ disguise ? 'A disguise is always this way' : installedWindow ? 'On by default in the installed app; pawbs reloads to switch' : 'In this browser, on this device; the installed app has it on by default. pawbs reloads to switch' }})</span></span>
       <input class="rv-switch" type="checkbox" :checked="traceless" :disabled="!!disguise" @change="setTraceless(($event.target as HTMLInputElement).checked, route.fullPath)" />
     </label>
     <p v-if="traceless" class="rv-hint">Your keyboard may still learn words typed in pawbs (Android lets apps opt out, not web pages); a phone keyboard’s incognito mode, or picking tags from the suggestions, avoids that.</p>

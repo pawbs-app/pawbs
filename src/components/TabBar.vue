@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* The phone's tab bar (640px wide or less): the four places used most, and More for the rest
    (MoreSheet). At the bottom, where a thumb reaches; the place in use carries the HUD's brackets
-   around its icon and its word in full white; Following counts what is new. Hidden under the
+   around its icon and its word, the word in full white; Following counts what is new. Hidden under the
    gallery and while posts are being picked (the selection bar takes the bottom then). The tab in use,
    tapped again, goes back to the top of its page (retap). */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -60,15 +60,19 @@ const moreOn = computed(() => moreOpen.value || ['pools', 'pool', 'sets', 'set',
 <template>
   <nav class="tabbar" :class="{ typing, picking }" aria-label="Sections">
     <RouterLink v-for="t in tabs" :key="t.key" :to="t.to" class="tab" :class="{ on: isOn(t.key) }" :aria-current="isOn(t.key) ? 'page' : undefined" data-press="off" @click.capture="retap($event, t.key)">
-      <span class="ico">
-        <Icon :name="t.icon" :size="18" />
-        <span v-if="t.badge" class="badge tabular">{{ t.badge > 99 ? '99+' : t.badge }}</span>
+      <span class="frame">
+        <span class="ico">
+          <Icon :name="t.icon" :size="18" />
+          <span v-if="t.badge" class="badge tabular">{{ t.badge > 99 ? '99+' : t.badge }}</span>
+        </span>
+        <span class="lbl">{{ t.label }}</span>
       </span>
-      <span class="lbl">{{ t.label }}</span>
     </RouterLink>
     <button class="tab" :class="{ on: moreOn }" type="button" aria-haspopup="dialog" :aria-expanded="moreOpen" data-press="off" @click="moreOpen = true">
-      <span class="ico"><Icon name="more" :size="18" /></span>
-      <span class="lbl">More</span>
+      <span class="frame">
+        <span class="ico"><Icon name="more" :size="18" /></span>
+        <span class="lbl">More</span>
+      </span>
     </button>
   </nav>
   <MoreSheet :open="moreOpen" @close="moreOpen = false" />
@@ -108,27 +112,46 @@ const moreOn = computed(() => moreOpen.value || ['pools', 'pool', 'sets', 'set',
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   border: 0;
   background: none;
   color: var(--text-3);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
 }
-.tab .ico {
+.tab .frame {
   --bc: var(--text);
-  --bs: 6px;
+  --bs: 9px;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 46px;
+  max-width: 100%;
+}
+/* The brackets' box: a little outside the icon and its word, taking none of their room (the longest
+   word keeps the whole width of its tab). */
+.tab .frame::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -3px -5px -5px;
+  pointer-events: none;
+}
+.tab .ico {
   position: relative;
   display: grid;
   place-items: center;
   width: 34px;
   height: 26px;
 }
-/* The place in use: its icon framed in the HUD's brackets (locking on as it is chosen), its word white. */
+/* The place in use: its icon and its word framed in the HUD's brackets (locking on as it is chosen),
+   the word white. */
 .tab.on {
   color: var(--text);
 }
-.tab.on .ico {
+.tab.on .frame::before {
   background:
     linear-gradient(var(--bc), var(--bc)) top left / var(--bs) 1px no-repeat,
     linear-gradient(var(--bc), var(--bc)) top left / 1px var(--bs) no-repeat,
@@ -140,11 +163,11 @@ const moreOn = computed(() => moreOpen.value || ['pools', 'pool', 'sets', 'set',
     linear-gradient(var(--bc), var(--bc)) bottom right / 1px var(--bs) no-repeat;
 }
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-fx='off']) .tab.on .ico {
+  :root:not([data-fx='off']) .tab.on .frame {
     animation: fx-lock calc(0.24s * var(--fx-speed, 1)) cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
-.tab:active .ico {
+.tab:active .frame::before {
   background-color: var(--hover);
 }
 .lbl {

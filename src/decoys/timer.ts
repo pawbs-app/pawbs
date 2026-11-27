@@ -1,6 +1,7 @@
-/* The Timer disguise (src/disguise.ts): an ordinary countdown that works. Set to the code given with
-   the disguise (12:34 for 1234) and started, it opens pawbs instead. Its own small chunk, no Vue,
-   nothing of pawbs. */
+/* The Timer disguise (src/disguise.ts): an ordinary countdown that works. Its time is typed in one
+   go, as on a phone's clock: tap it, and digits fill it from the right (1, 13, 135, 1357 make
+   13:57). Set to the code given with the disguise (1234 makes 12:34) and started, it opens pawbs
+   instead. Its own small chunk, no Vue, nothing of pawbs. */
 import type { DecoyContext } from '../disguise'
 
 const CSS = `
@@ -10,8 +11,13 @@ const CSS = `
 .dk-timer .dial{position:relative;width:min(72vw,300px);aspect-ratio:1;margin-top:4vh}
 .dk-timer .dial svg{position:absolute;inset:0;transform:rotate(-90deg)}
 .dk-timer .time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:2px;font-size:clamp(40px,13vw,60px);font-weight:300;font-variant-numeric:tabular-nums}
-.dk-timer .time input{all:unset;width:1.25em;text-align:center;border-radius:10px;user-select:text;-webkit-user-select:text}
-.dk-timer .time input:focus{background:var(--chip)}
+.dk-timer .digits{padding:0 .18em;border-radius:12px}
+.dk-timer .time.editing .digits{background:var(--chip)}
+.dk-timer .time.editing.fresh .digits{color:var(--muted)}
+.dk-timer .time.editing .digits::after{content:'';display:inline-block;width:2px;height:.75em;margin-left:3px;vertical-align:-.04em;background:var(--accent);animation:dk-blink 1s steps(1) infinite}
+@keyframes dk-blink{50%{opacity:0}}
+.dk-timer .entry{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:50%;opacity:0;font-size:16px;caret-color:transparent;cursor:pointer}
+.dk-timer .entry:disabled{cursor:default}
 .dk-timer .chips{display:flex;gap:8px;margin-top:28px}
 .dk-timer .chips button{all:unset;padding:7px 14px;border-radius:16px;background:var(--chip);font-size:14px;cursor:pointer}
 .dk-timer .ctl{margin-top:auto;margin-bottom:calc(36px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:36px}
@@ -32,12 +38,13 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
   el.style.setProperty('--accent', ctx.color)
   el.innerHTML = `<h1></h1>
     <div class="dial"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--track)" stroke-width="5"/><circle class="arc" cx="50" cy="50" r="${R}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round"/></svg>
-      <div class="time"><input class="mm" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Minutes"/>:<input class="ss" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Seconds"/></div></div>
+      <div class="time"><span class="digits" aria-hidden="true"></span><input class="entry" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Time, minutes and seconds"/></div></div>
     <div class="chips"></div>
     <div class="ctl"><button class="reset" type="button" aria-label="Reset">${RESET}</button><button class="go" type="button" aria-label="Start">${PLAY}</button></div>`
   ;(el.querySelector('h1') as HTMLElement).textContent = ctx.name
-  const mm = el.querySelector('.mm') as HTMLInputElement
-  const ss = el.querySelector('.ss') as HTMLInputElement
+  const time = el.querySelector('.time') as HTMLElement
+  const digits = el.querySelector('.digits') as HTMLElement
+  const entry = el.querySelector('.entry') as HTMLInputElement
   const arc = el.querySelector('.arc') as SVGCircleElement
   const go = el.querySelector('.go') as HTMLButtonElement
   const reset = el.querySelector('.reset') as HTMLButtonElement
@@ -51,9 +58,13 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
   let endAt = 0
   let tick = 0
   const pad = (n: number) => String(n).padStart(2, '0')
+  /* What is being typed (null: nothing): up to four digits, the last ones the seconds. */
+  let typed: string | null = null
   const show = () => {
-    mm.value = pad(Math.floor(left / 60))
-    ss.value = pad(Math.floor(left % 60))
+    const d = typed !== null ? typed.padStart(4, '0') : pad(Math.floor(left / 60)) + pad(Math.floor(left % 60))
+    digits.textContent = `${d.slice(0, 2)}:${d.slice(2)}`
+    time.classList.toggle('editing', typed !== null)
+    time.classList.toggle('fresh', typed === '')
     arc.style.strokeDashoffset = String(C * (1 - (total ? left / total : 0)))
   }
   const setTo = (secs: number) => {
@@ -61,7 +72,6 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
     total = left = Math.max(0, Math.min(99 * 60 + 59, Math.round(secs)))
     show()
   }
-  const read = () => (parseInt(mm.value || '0', 10) || 0) * 60 + Math.min(59, parseInt(ss.value || '0', 10) || 0)
   for (const m of [1, 5, 10]) {
     const b = document.createElement('button')
     b.type = 'button'
@@ -69,10 +79,24 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
     b.onclick = () => setTo(m * 60)
     chips.append(b)
   }
-  for (const f of [mm, ss]) {
-    f.onfocus = () => f.select()
-    f.oninput = () => (f.value = f.value.replace(/\D/g, '').slice(0, 2))
-    f.onchange = () => setTo(read())
+  entry.onfocus = () => {
+    typed = entry.value = ''
+    show()
+  }
+  entry.oninput = () => {
+    typed = entry.value = entry.value.replace(/\D/g, '').slice(-4)
+    show()
+  }
+  // Done typing (Enter, a tap elsewhere, Start): the time typed, its seconds past 59 carried over
+  // (12:90 is 13:30); nothing typed keeps the time it had.
+  entry.onblur = () => {
+    const t = typed
+    typed = null
+    if (t) setTo(Number(t.slice(0, -2) || 0) * 60 + Number(t.slice(-2)))
+    else show()
+  }
+  entry.onkeydown = (e) => {
+    if (e.key === 'Enter') entry.blur()
   }
 
   /* The button's icon, changed only when it changes: pressing Start first commits a field being
@@ -86,7 +110,7 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
     if (tick) clearInterval(tick)
     tick = 0
     face('Start')
-    mm.readOnly = ss.readOnly = false
+    entry.disabled = false
   }
   function ring() {
     navigator.vibrate?.([300, 150, 300])
@@ -113,12 +137,10 @@ export function mount(root: HTMLElement, ctx: DecoyContext) {
       return
     }
     // A fresh start on exactly the code: pawbs opens instead.
-    const fields = mm.value.padStart(2, '0') + ss.value.padStart(2, '0')
-    if (left === total && (await ctx.unlock(fields))) return
-    if (left === total) setTo(read())
+    if (left === total && (await ctx.unlock(pad(Math.floor(total / 60)) + pad(total % 60)))) return
     if (left <= 0) return
     endAt = Date.now() + left * 1000
-    mm.readOnly = ss.readOnly = true
+    entry.disabled = true
     face('Pause')
     tick = window.setInterval(() => {
       left = Math.max(0, (endAt - Date.now()) / 1000)

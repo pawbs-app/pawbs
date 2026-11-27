@@ -13,7 +13,7 @@ export type DisguiseKind = (typeof KINDS)[number]
 export const KIND_INFO: Record<DisguiseKind, { name: string; secret: 'digits' | 'word'; how: string }> = {
   calculator: { name: 'Calculator', secret: 'digits', how: 'Type your code, then =' },
   notes: { name: 'Notes', secret: 'word', how: 'Save a note whose first line is your word' },
-  timer: { name: 'Timer', secret: 'digits', how: 'Set the timer to your code (12:34 for 1234), then start it' },
+  timer: { name: 'Timer', secret: 'digits', how: 'Tap the time, type your code (1234 makes 12:34), then start it' },
 }
 
 /** The icon colours (their PNGs are made by scripts/make-disguise-icons.mjs, deploy/disguise.js knows them). */
