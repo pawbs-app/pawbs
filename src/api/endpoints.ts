@@ -463,7 +463,7 @@ export async function votePost(postId: number, score: 1 | -1): Promise<VoteResul
 /** Probe a site address: answers with the time taken and the response format. */
 export async function probeSite(url: string): Promise<{ ms: number; format: 'current' | 'legacy'; sample: Post | null }> {
   const t0 = performance.now()
-  const body = await apiRequest<unknown>({ url }, '/posts.json', { params: { limit: 1 }, ttl: 0, priority: Priority.User })
+  const body = await apiRequest<unknown>({ url }, '/posts.json', { params: { limit: 1 }, ttl: 0, priority: Priority.User, trial: true })
   const ms = Math.round(performance.now() - t0)
   const list = normalizePostList(body, url)
   const first = Array.isArray(body) ? body[0] : (body as { posts?: unknown[] })?.posts?.[0]
@@ -486,6 +486,7 @@ export async function verifyAccount(url: string, username: string, apiKey: strin
   const body = await apiRequest<unknown>({ url, auth: { username, apiKey } }, `/users/${encodeURIComponent(username)}.json`, {
     auth: true,
     ttl: 0,
+    trial: true,
   })
   return normalizeUser(body)
 }

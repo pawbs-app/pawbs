@@ -31,6 +31,10 @@ import { useInstall } from './composables/install'
 import { useInstallPrompt } from './composables/installPrompt'
 import { closeAssistant, leaveAssistantFor, openAssistant } from './composables/assistant'
 import InstallNotice from './components/InstallNotice.vue'
+import SiteTrouble from './components/SiteTrouble.vue'
+import { siteHealth } from './services/siteHealth'
+import { keepQuietly } from './services/keepData'
+import { useBackup } from './stores/backup'
 import { useInbox } from './composables/inbox'
 import AgeGate from './components/AgeGate.vue'
 import TabBar from './components/TabBar.vue'
@@ -150,6 +154,15 @@ function onPaste(e: ClipboardEvent) {
   void appRouter.push(to)
 }
 onMounted(() => document.addEventListener('paste', onPaste))
+
+// The browser's promise to keep this data, asked where it asks nobody (services/keepData); the backup
+// store starts counting the week before its first reminder.
+onMounted(() =>
+  window.setTimeout(() => {
+    useBackup()
+    void keepQuietly(sites.sites.length > 0)
+  }, 4000),
+)
 
 // App-wide keys sit at the bottom of the key layers.
 onMounted(() => {
@@ -318,7 +331,9 @@ onCheckPassed(() => {
   <TabBar v-if="showTabs" />
   <SelectionBar />
   <PullToRefresh />
-  <InstallNotice v-if="installPrompt.inviteOpen.value && route.name !== 'settings' && !viewerOpen" floating />
+  <!-- The site failing (services/siteHealth) comes first: the invitation to install waits meanwhile. -->
+  <SiteTrouble v-if="showChrome && !viewerOpen" />
+  <InstallNotice v-if="installPrompt.inviteOpen.value && route.name !== 'settings' && !viewerOpen && !(siteHealth.kind && !siteHealth.hidden)" floating />
   <Toasts />
   <ContextMenu />
 </template>

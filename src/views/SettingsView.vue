@@ -32,6 +32,10 @@ import { allKeys, clearAll, removeKey, storageBackend, storageBytes, vaultMeta }
 import PrivacySettings from '@/components/PrivacySettings.vue'
 import { useLayout } from '@/composables/layout'
 import { probeSite, verifyAccount } from '@/api/endpoints'
+import { keyPages } from '@/utils/apiKeys'
+import { asksPerson, keepData, kept, readKept } from '@/services/keepData'
+import { useBackup } from '@/stores/backup'
+import { relativeTime } from '@/utils/format'
 import { APP_VERSION, normalizeSiteUrl } from '@/api/client'
 import { describeConnection } from '@/services/netinfo'
 import { forgetCors, formatBytes, saveJson } from '@/services/download'
@@ -113,6 +117,7 @@ const siteLinks = [
   { href: '/install', label: 'Install' },
   { href: '/faq', label: 'FAQ' },
   { href: '/privacy', label: 'Privacy' },
+  { href: '/security', label: 'Security' },
 ]
 const allSections = [
   { key: 'sites', label: 'Sites & account', icon: 'user', sub: 'The sites you browse, signing in' },
@@ -287,8 +292,19 @@ function resetCors() {
   ui.toast('Saving will test each file host again')
 }
 
+/** Where the site being edited, and the one in use, make and list API keys (e621 and e926). */
+const editKeys = computed(() => keyPages(editing.value ? normalizeSiteUrl(editing.value.url ?? '') : ''))
+const activeKeys = computed(() => keyPages(sites.active?.url))
+
 // ---------- data ----------
 const bytes = ref(storageBytes())
+const backupState = useBackup()
+void readKept()
+/** Settings › Data › Kept: asks the browser (Firefox asks the person). */
+async function askKeep() {
+  const ok = await keepData()
+  ui.toast(ok ? 'The browser will keep pawbs’ data' : 'The browser did not promise to keep it: a backup keeps it safe', ok ? { tone: 'ok' } : {})
+}
 const limited = storageBackend() === 'localstorage'
 /* Backups: one JSON file. Plain: { app, version, exportedAt, data }. Encrypted: the same header and
    `encrypted` (see services/backupCrypto) in place of `data`, so a restore knows to ask for the
@@ -300,6 +316,17 @@ function openExport() {
   // A backup holding an API key, or of data kept encrypted, starts with encryption on.
   exporting.value = { encrypt: canEncrypt && (hasApiKey.value || !!vaultMeta()), password: '', confirm: '', busy: false, error: '' }
 }
+// From the backup reminder on Home (Back up now, with an API key or encrypted data): the dialog, to give
+// the file a password.
+watch(
+  () => route.query.backup,
+  (v) => {
+    if (v !== '1') return
+    if (section.value === 'data') openExport()
+    void router.replace({ path: route.path })
+  },
+  { immediate: true },
+)
 const exportProblem = computed(() => {
   const e = exporting.value
   if (!e?.encrypt) return ''
@@ -314,6 +341,7 @@ async function runExport() {
   const day = head.exportedAt.slice(0, 10)
   if (!e.encrypt) {
     saveJson({ ...head, data: backupData() }, `pawbs-backup-${day}.json`)
+    backupState.last = Date.now()
     exporting.value = null
     return
   }
@@ -322,6 +350,7 @@ async function runExport() {
   try {
     const encrypted = await encryptBackup(backupData(), e.password)
     saveJson({ ...head, encrypted }, `pawbs-backup-${day}.encrypted.json`)
+    backupState.last = Date.now()
     exporting.value = null
     ui.toast('Encrypted backup saved', { tone: 'ok' })
   } catch (err) {
@@ -520,6 +549,11 @@ void DEFAULT_SETTINGS
               <RouterLink class="rv-btn rv-btn--sm" to="/settings/blacklist"><Icon name="eye-off" />Blacklist with the account…</RouterLink>
               <RouterLink class="rv-btn rv-btn--sm" to="/favorites"><Icon name="bookmark" />Import favourites…</RouterLink>
             </div>
+            <!-- Revoking: the site lists its keys with when and where each was last used. -->
+            <p v-if="activeKeys" class="rv-hint sp key-hint">
+              The account’s API keys, when each was last used, and Delete (which signs pawbs out at once):
+              <a class="link-btn" :href="activeKeys.list" target="_blank" rel="noopener">API keys on {{ activeKeys.site }}</a>.
+            </p>
           </template>
           <p v-else class="rv-hint">Browsing works as a guest. Add a user name and API key (Edit above) to vote, keep favourites in the account and use its blacklist.</p>
         </section>
@@ -838,6 +872,17 @@ void DEFAULT_SETTINGS
             <dd class="tabular">{{ collections.count }}</dd>
             <dt>Storage used</dt>
             <dd class="tabular">{{ formatBytes(bytes) }} <span v-if="limited" class="faint">of ≈5 MB</span></dd>
+            <template v-if="kept !== null">
+              <dt>Kept by the browser</dt>
+              <dd>
+                <template v-if="kept">Yes, not cleared to free space</template>
+                <template v-else>
+                  Not promised: it may be cleared to free space.
+                  <button v-if="asksPerson()" class="link-btn" type="button" @click="askKeep">Ask to keep it</button>
+                  <span v-else class="faint">Installing pawbs usually makes the browser keep it.</span>
+                </template>
+              </dd>
+            </template>
           </dl>
           <!-- The ≈5 MB limit is localStorage's, used only where IndexedDB is unavailable. -->
           <div v-if="limited" class="rv-meter sp" :class="{ 'rv-meter--warn': bytes > 3.5e6, 'rv-meter--bad': bytes > 4.5e6 }">
@@ -854,6 +899,7 @@ void DEFAULT_SETTINGS
             Everything (sites, accounts, favourites, collections, searches, follows, saved pools and sets, settings) in one JSON file. It holds your API keys: encrypt it with a password, or keep
             it private.
           </p>
+          <p class="rv-hint sp">Last backup: {{ backupState.last ? relativeTime(backupState.last) : 'none from this browser' }}</p>
           <div class="row sp wrap">
             <button class="rv-btn rv-btn--sm" type="button" @click="openExport"><Icon name="download" />Export backup…</button>
             <button class="rv-btn rv-btn--sm" type="button" @click="fileInput?.click()"><Icon name="folder" />Restore backup…</button>
@@ -946,7 +992,11 @@ void DEFAULT_SETTINGS
           <input v-model="editing.apiKey" class="rv-input" type="password" placeholder="Optional" autocomplete="off" spellcheck="false" />
         </label>
       </div>
-      <p class="rv-hint">The API key is kept in this browser’s storage and sent only to this site, in an Authorization header.</p>
+      <p v-if="editKeys" class="rv-hint key-hint">
+        Not your password: an API key. <a class="link-btn" :href="editKeys.create" target="_blank" rel="noopener">Create one on {{ editKeys.site }}</a>, name it “pawbs” and keep an expiry. It stays in
+        this browser and goes only to {{ editKeys.site }}, in an Authorization header.
+      </p>
+      <p v-else class="rv-hint">The API key is kept in this browser’s storage and sent only to this site, in an Authorization header.</p>
       <p v-if="testState" class="rv-hint" :class="testState.ok ? 'ok' : 'bad'" :role="testState.ok ? 'status' : 'alert'">{{ testState.text }}</p>
       <template #footer>
         <button class="rv-btn" type="button" :disabled="testing || !editing.url" @click="testSite"><Icon name="retry" />{{ testing ? 'Testing…' : 'Test' }}</button>

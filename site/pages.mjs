@@ -25,8 +25,9 @@ export const faq = [
     group: 'Accounts and privacy',
     items: [
       ['Do I need an e621 account?', 'No, you can browse as a guest. Sign in to see your e621 favourites and sets, vote, and bring your blacklist over.'],
-      ['How do I sign in? Why an API key?', 'pawbs asks for your e621 user name and an API key, which you create in your e621 account settings, under API access. A key can do less than your password and you can revoke it at any time, so pawbs never needs your password.'],
-      ['Where is my API key kept?', 'In this browser’s storage, on your device. It is sent only to e621 or e926, in the header of each request, never to pawbs.'],
+      ['How do I sign in? Why an API key?', 'pawbs asks for your e621 user name and an API key. Create one on e621 under <a href="https://e621.net/api_keys">API keys</a> in your account: name it “pawbs”, keep an expiry, and paste it into pawbs. A key works only through the API (it cannot sign in to the website) and you can delete it at any time, so pawbs never needs your password.'],
+      ['Where is my API key kept?', 'In this browser’s storage, on your device, and encrypted with your password or passkey if you turn on the privacy lock (Settings › Privacy). It is sent only to e621 or e926, in the header of the requests that need it, never to pawbs.'],
+      ['Is it safe to sign in to pawbs?', 'pawbs never asks for your password, keeps your API key on your device and runs no code but its own, which anyone can read. Give it a key of its own, with an expiry: e621 shows when it was last used, and deleting it stops pawbs at once. The <a href="/security">security page</a> explains each point and how to check it.'],
       ['Does pawbs see what I browse?', 'No. Searches and pictures go straight from your browser to e621 or e926. The pawbs server only delivers the app itself and, when you use it, relays an end-to-end encrypted transfer between your devices. Read the <a href="/privacy">privacy page</a>.'],
     ],
   },
@@ -248,7 +249,7 @@ export const pages = [
     nav: 'FAQ',
     title: 'pawbs FAQ: e621 account, API key, blacklist, videos',
     description: 'Answers about pawbs, the free e621 and e926 viewer: do you need an account, why an API key, privacy, blacklist, videos, iPhone and Android.',
-    updated: '2026-11-25',
+    updated: '2026-11-27',
     crumb: 'FAQ',
     h1: 'Questions about pawbs',
     lede: 'Accounts, privacy, videos, devices: the questions people ask about pawbs, answered.',
@@ -295,7 +296,7 @@ export const pages = [
     nav: 'About',
     title: 'About pawbs, an independent, open-source e621 client',
     description: 'pawbs is an independent, free and open-source e621 and e926 client in your browser: an alternative front end made to be fast and private. Why it exists and how it works.',
-    updated: '2026-11-25',
+    updated: '2026-11-27',
     crumb: 'About',
     h1: 'About pawbs',
     lede: 'pawbs is an independent, open-source viewer for e621 and e926, made to be fast, clean and private, on every device.',
@@ -310,6 +311,7 @@ export const pages = [
   <li>Searches and pictures go straight from your browser to e621 or e926, through their public API. pawbs respects their rate limits and names itself in every request, with a contact address.</li>
   <li>What you keep (favourites, follows, collections, settings) stays in your browser. There are no pawbs accounts.</li>
   <li>The pawbs server only delivers the app and, when you ask for it, relays an end-to-end encrypted transfer between your own devices. <a href="/privacy">Privacy in detail</a></li>
+  <li>Your API key stays on your device and goes only to e621 or e926. <a href="/security">Is pawbs safe?</a></li>
 </ul>
 
 <h2>Open source</h2>
@@ -328,7 +330,7 @@ export const pages = [
     nav: 'Privacy',
     title: 'Privacy: pawbs is a private e621 client with no tracking',
     description: 'How pawbs, a private e621 and e926 client, handles your data: no tracking, no ads, no accounts. What stays in your browser and what the server sees.',
-    updated: '2026-11-25',
+    updated: '2026-11-27',
     crumb: 'Privacy',
     h1: 'Privacy',
     lede: 'pawbs has no ads, no analytics, no tracking and no accounts. Here is exactly where your data goes.',
@@ -338,7 +340,7 @@ export const pages = [
   <li>What you keep in pawbs stays in your browser, on your device.</li>
   <li>Searches and pictures go straight to e621 or e926, not through pawbs.</li>
   <li>pawbs sets no cookies of its own and uses no analytics or tracking of any kind.</li>
-  <li>pawbs is open source: anyone can check these statements in <a href="https://github.com/pawbs-app/pawbs">its code</a>.</li>
+  <li>pawbs is open source: anyone can check these statements in <a href="https://github.com/pawbs-app/pawbs">its code</a>. The <a href="/security">security page</a> says how.</li>
 </ul>
 
 <h2>On your device</h2>
@@ -353,5 +355,61 @@ export const pages = [
 
 <h2>Contact</h2>
 <p>Questions about your data: <a href="mailto:contact@pawbs.app">contact@pawbs.app</a>. More answers in the <a href="/faq">FAQ</a>, and who is behind pawbs on the <a href="/about">about page</a>.</p>`,
+  },
+  {
+    slug: 'security',
+    nav: 'Security',
+    top: false,
+    title: 'Is pawbs safe? Your e621 API key and what goes where',
+    description: 'Is pawbs safe to use with your e621 account? Where your API key is kept and sent, what pawbs does with your account, where your data goes, and how to check it yourself.',
+    updated: '2026-11-27',
+    crumb: 'Security',
+    h1: 'Is pawbs safe?',
+    lede: 'pawbs never asks for your password and keeps your API key on your device. Here is where everything goes, what pawbs does with your account, and how to check it yourself.',
+    body: `
+<h2>In short</h2>
+<ul class="list">
+  <li>Your API key stays in your browser and is sent only to e621 or e926, never to pawbs.</li>
+  <li>Searches and pictures go straight from your browser to e621 or e926. The pawbs server delivers the app, nothing more.</li>
+  <li>No other code runs in pawbs: no analytics, no ads, no third-party scripts, and the browser is told to refuse any.</li>
+  <li>The code is open: anyone can read it, see what each release was built from, or run their own copy.</li>
+</ul>
+
+<h2>Your API key</h2>
+<p>An e621 API key is not your password. It works only through the API, so it cannot sign in to the website, and you can delete it at any time. It can still do anything your account can do through the API, so give pawbs a key of its own:</p>
+<ol class="steps">
+  <li>On e621, open the <a href="https://e621.net/api_keys">API keys</a> of your account and choose <b>Create API key</b> (e621 asks for your password again).</li>
+  <li>Name it <b>pawbs</b> and keep an expiry (a year is e621’s default).</li>
+  <li>Paste the key into pawbs, with your user name.</li>
+</ol>
+<p>The same page shows when and from where each key was last used. <b>Delete</b> stops a key at once. When a key expires, pawbs says so and links to the page that makes a new one.</p>
+<p>In pawbs, the key is kept in your browser’s storage, on this device. With the privacy lock on (Settings › Privacy), everything pawbs stores, the key included, is encrypted with your password or passkey. The key is sent only to the site it belongs to, in the Authorization header of the requests that need your account. A backup file that holds a key is encrypted with a password by default, and a transfer to your other device is encrypted end to end.</p>
+
+<h2>What pawbs does with your account</h2>
+<ul class="list">
+  <li>It reads your favourites, sets, blacklist and followed tags, to show them.</li>
+  <li>It changes your account when you do something: a favourite, a vote, a post added to a set.</li>
+  <li>Two syncs keep pawbs and your account in step, and on their own they only add: followed tags with the account’s tag subscriptions (the Following page) and the blacklist (Settings › Blacklist). Something leaves your account only when you remove it in pawbs yourself.</li>
+</ul>
+
+<h2>Where everything goes</h2>
+<ul class="list">
+  <li><b>e621 or e926</b> (or another board you add): your searches, the pages and pictures you open, and your user name and API key when you are signed in. As on their own website, they see your IP address.</li>
+  <li><b>pawbs.app</b>: requests for the app’s own files and, only when you move your data to another device, that data, encrypted on your device first. Nothing you search or view.</li>
+  <li><b>Nowhere else.</b> pawbs has no analytics, ads or trackers, and loads no scripts or fonts from anyone else. pawbs.app is served through Cloudflare (see the <a href="/privacy">privacy page</a>).</li>
+</ul>
+
+<h2>Check it yourself</h2>
+<ul class="list">
+  <li><b>Watch the traffic.</b> Open your browser’s developer tools on pawbs.app, Network tab: every request goes to e621 or e926 (and their file server), or to pawbs.app.</li>
+  <li><b>Read the policy.</b> pawbs.app sends a Content-Security-Policy that lets scripts come only from pawbs.app itself and forbids plugins and framing by other sites: no other code can run in the page, even if something tried to slip it in. Connections are left open to any address, because you can add any compatible board.</li>
+  <li><b>Read the code.</b> pawbs is open source (GNU AGPL-3.0), on <a href="https://github.com/pawbs-app/pawbs">GitHub</a> and <a href="https://gitlab.com/pawbs.app/pawbs">GitLab</a>. Every release is a tagged version of that code, built and tested on GitLab, and Settings › About shows the version and the commit your copy was built from.</li>
+  <li><b>Run your own copy.</b> The image is public: <code>docker run -p 8080:8080 registry.gitlab.com/pawbs.app/pawbs:latest</code>, or build it from the source (see the <a href="https://github.com/pawbs-app/pawbs#readme">README</a>).</li>
+</ul>
+
+<h2>Report a problem</h2>
+<p>Found a security problem? Write to <a href="mailto:contact@pawbs.app">contact@pawbs.app</a> (<a href="/.well-known/security.txt">security.txt</a>).</p>
+
+<p class="note">pawbs never asks for your e621 password. A page that does is not pawbs.</p>`,
   },
 ]

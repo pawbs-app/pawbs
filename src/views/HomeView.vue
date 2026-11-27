@@ -17,6 +17,7 @@ import { useUi } from '@/stores/ui'
 import { useInstall } from '@/composables/install'
 import { useInbox } from '@/composables/inbox'
 import InboxRows from '@/components/InboxRows.vue'
+import BackupReminder from '@/components/BackupReminder.vue'
 import { prettyTag } from '@/query/syntax'
 import { relativeTime } from '@/utils/format'
 import type { Post } from '@/api/types'
@@ -159,6 +160,8 @@ const quick = [
       </div>
     </section>
 
+    <BackupReminder class="reminder" />
+
     <section class="block inbox">
       <div class="block-head">
         <h2 class="rv-heading rv-label">Following</h2>
@@ -277,6 +280,10 @@ const quick = [
   }
 }
 
+/* Under the search, before the lists (components/BackupReminder). */
+.reminder {
+  margin-top: 16px;
+}
 .hero {
   position: relative;
   display: grid;

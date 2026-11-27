@@ -2,6 +2,8 @@
    serves the most urgent request first, merges identical requests in flight and keeps GET answers
    for a short while. Every request goes straight from the browser to the site's API. */
 
+import { backgroundAllowed, noteFailure, noteKeyRefused, noteOk } from '@/services/siteHealth'
+
 export const APP_VERSION: string = __APP_VERSION__
 /* Who is asking, on every request (`_client`: a browser cannot set its User-Agent), with a way to reach
    the app's maker: what the sites' API rules ask of a client. */
@@ -46,6 +48,9 @@ export interface RequestOptions {
   auth?: boolean
   /** Cache a GET answer for this many ms (default 60 s, 0 to skip). */
   ttl?: number
+  /** A check of an address or an account being entered: what it meets says nothing about the site in
+      use (services/siteHealth). */
+  trial?: boolean
 }
 
 interface Job {
@@ -231,12 +236,14 @@ function authHeader(auth: SiteAuth): string {
 }
 
 function messageFor(status: number, body: unknown): string {
+  // A web page where an answer was due: the site's protection (its visitor check), not the API.
+  if (status === 403 && body === null) return 'The site’s protection turned this request away. Apps cannot pass its visitor check: wait a few minutes and retry'
   const j = body as Record<string, unknown> | null
   const fromBody = j && typeof j === 'object' ? (j.message ?? j.reason ?? (Array.isArray(j.errors) ? j.errors.join(', ') : null)) : null
   const detail = typeof fromBody === 'string' && fromBody && !fromBody.startsWith('SessionLoader') ? ` · ${fromBody}` : ''
   switch (status) {
     case 401:
-      return 'The site refused the account: check the user name and API key' + detail
+      return 'The site refused the account: check the user name and API key (a key can also have expired or been deleted on the site)' + detail
     case 403:
       return 'The site refused this request' + detail
     case 404:
@@ -269,6 +276,7 @@ export async function apiRequest<T = unknown>(site: SiteEndpoint, path: string, 
   const url = `${site.url}${path}?${encodeParams(opts.params)}`
   const key = `${method} ${url} ${useAuth ? site.auth!.username : ''}`
   const ttl = opts.ttl ?? 60_000
+  const watched = !opts.trial
 
   if (method === 'GET' && ttl > 0) {
     const hit = cacheGet(key)
@@ -282,6 +290,11 @@ export async function apiRequest<T = unknown>(site: SiteEndpoint, path: string, 
         throw e
       })
     }
+  }
+
+  // The site is not answering: what runs in the background waits (services/siteHealth).
+  if (watched && (opts.priority ?? Priority.User) >= Priority.Background && !backgroundAllowed(site.url)) {
+    return Promise.reject(new ApiError(0, 'Not asked: the site is not answering for now'))
   }
 
   const promise = new Promise<T>((resolve, reject) => {
@@ -342,6 +355,7 @@ export async function apiRequest<T = unknown>(site: SiteEndpoint, path: string, 
               setTimeout(() => attempt(tries + 1), 800)
               return
             }
+            if (watched) void noteFailure(site.url, 'no-answer')
             return reject(
               new ApiError(
                 0,
@@ -382,8 +396,14 @@ export async function apiRequest<T = unknown>(site: SiteEndpoint, path: string, 
               setTimeout(() => attempt(tries + 1), 1500 * (tries + 1))
               return
             }
+            if (watched) {
+              if (res.status === 401 && useAuth) noteKeyRefused(site.url)
+              else if (res.status === 403 && data === null) void noteFailure(site.url, 'blocked', 403)
+              else if (res.status >= 500) void noteFailure(site.url, 'down', res.status)
+            }
             return reject(new ApiError(res.status, messageFor(res.status, data)))
           }
+          if (watched) noteOk(site.url, useAuth)
           if (data === null && method === 'GET') {
             return reject(new ApiError(res.status, text ? 'No gallery answered at this address' : 'The site sent an empty answer'))
           }

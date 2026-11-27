@@ -12,6 +12,7 @@ import type { UserInfo } from '@/api/types'
 import { checkRelay } from '@/services/transfer'
 import AgeCheck from '@/components/AgeCheck.vue'
 import { openOut } from '@/services/openOut'
+import { keyPages } from '@/utils/apiKeys'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +52,8 @@ function afterSwap() {
   if (custom.value) customInput.value?.focus()
   else customBtn.value?.focus({ preventScroll: true })
 }
+/** Where the picked site makes API keys (e621 and e926): the account's hint links there. */
+const keys = computed(() => keyPages(normalizeSiteUrl(url.value)))
 const username = ref('')
 const apiKey = ref('')
 const withAccount = ref(false)
@@ -266,7 +269,12 @@ const siteLinks = [
             <span class="rv-label">API key</span>
             <input v-model="apiKey" class="rv-input" type="password" autocomplete="off" spellcheck="false" />
           </label>
-          <p class="rv-hint wide">Use an API key from your account settings on the site, not your password. It is kept in this browser’s storage and sent only to the site, in an Authorization header.</p>
+          <!-- Kept as short as the rest of the box: the details are on the security page. -->
+          <p v-if="keys" class="rv-hint wide key-hint">
+            Not your password: an API key. <a :href="keys.create" target="_blank" rel="noopener">Create one on {{ keys.site }}</a>, name it “pawbs”, keep an expiry, and paste it here. It
+            stays in this browser and goes only to {{ keys.site }}. <a href="/security" target="_blank" rel="noopener">Is it safe?</a>
+          </p>
+          <p v-else class="rv-hint wide">Use an API key from your account settings on the site, not your password. It is kept in this browser’s storage and sent only to the site, in an Authorization header.</p>
         </div>
 
         <ul v-if="steps.length" class="rv-steps" aria-live="polite">
@@ -447,11 +455,13 @@ const siteLinks = [
   margin: 0;
   text-wrap: pretty;
 }
-.terms a {
+.terms a,
+.key-hint a {
   color: var(--text);
   text-underline-offset: 3px;
 }
-.terms a:hover {
+.terms a:hover,
+.key-hint a:hover {
   text-decoration-thickness: 2px;
 }
 .nowrap {
