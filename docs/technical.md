@@ -65,8 +65,9 @@ release is one commit on `beta` that sets the new version (built and checked the
 the fast-forward; the pipeline refuses to promote a commit whose version is already released. A commit
 pushed straight to the default branch (a fix that cannot wait) is built as usual; `beta` then merges
 the default branch back in, so the next release is still a fast-forward. Served at an address starting
-with `beta.`, the same image adds `X-Robots-Tag: noindex, nofollow` (`deploy/nginx.conf`) and the app
-shows a beta mark; Settings › About shows the build's commit on both.
+with `beta.`, the same image adds `X-Robots-Tag: noindex, nofollow` (`deploy/nginx.conf`), sends a
+manifest that names the installed app `pawbs beta` (`scripts/beta-manifest.mjs`), and the app shows a
+beta mark; Settings › About shows the build's commit on both.
 
 For the service worker and "install app", browsers require HTTPS (or `localhost`): put the container
 behind a reverse proxy with a certificate (Nginx Proxy Manager, Traefik, Caddy…). Over plain HTTP on a

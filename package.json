@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build && node scripts/site-pages.mjs && node scripts/compress.mjs",
+    "build": "vue-tsc -b && vite build && node scripts/site-pages.mjs && node scripts/beta-manifest.mjs && node scripts/compress.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc -b",
     "icons": "node scripts/make-icons.mjs"
