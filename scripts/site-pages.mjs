@@ -99,6 +99,8 @@ for (const p of pages) {
 // The day the static pages went up; a page added later says its own with `published`.
 const PUBLISHED = '2026-11-23'
 const OG_ALT = 'The pawbs paw mark beside the name: fast, private gallery viewer for image boards.'
+// The picture shown when a page is shared (a page may have its own: `og`).
+const OG = { src: '/og-image.png', type: 'image/png', width: 1200, height: 630, alt: OG_ALT }
 // Where the code is (open source, GNU AGPL-3.0): footer, structured data.
 const REPO = 'https://github.com/pawbs-app/pawbs'
 const LICENSE_URL = 'https://www.gnu.org/licenses/agpl-3.0.html'
@@ -109,6 +111,7 @@ function faqHtml() {
 
 function structuredData(p) {
   const url = `${ORIGIN}/${p.slug}`
+  const og = p.og ?? OG
   // Links in the FAQ's answers are written from the site's root: whole addresses in the data.
   const abs = (html) => html.replace(/href="\//g, `href="${ORIGIN}/`)
   const graph = [
@@ -124,7 +127,7 @@ function structuredData(p) {
       isPartOf: { '@id': `${ORIGIN}/#website` },
       about: { '@id': `${ORIGIN}/#app` },
       publisher: { '@id': `${ORIGIN}/#org` },
-      primaryImageOfPage: { '@type': 'ImageObject', url: `${ORIGIN}/og-image.png`, width: 1200, height: 630 },
+      primaryImageOfPage: { '@type': 'ImageObject', url: `${ORIGIN}${og.src}`, width: og.width, height: og.height },
       breadcrumb: { '@id': `${url}#breadcrumb` },
       ...(p.faq && {
         mainEntity: faq.flatMap((g) => g.items).map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: abs(a) } })),
@@ -143,6 +146,8 @@ function structuredData(p) {
       operatingSystem: 'Any (web browser): Windows, macOS, Linux, ChromeOS, Android, iOS, iPadOS',
       license: LICENSE_URL,
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+      // A page may say more about the app (the features page: its feature list and screenshots).
+      ...p.appData?.(ORIGIN),
     },
     {
       '@type': 'SoftwareSourceCode',
@@ -162,6 +167,7 @@ function structuredData(p) {
         { '@type': 'ListItem', position: 2, name: p.crumb, item: url },
       ],
     },
+    ...(p.nodes?.(ORIGIN) ?? []),
   ]
   return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }, null, 1).replace(/</g, '\\u003c')
 }
@@ -169,6 +175,7 @@ function structuredData(p) {
 function page(p) {
   const url = `${ORIGIN}/${p.slug}`
   const body = p.faq ? faqHtml() : p.body
+  const og = p.og ?? OG
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -188,23 +195,23 @@ function page(p) {
 <meta property="og:title" content="${esc(p.title)}">
 <meta property="og:description" content="${esc(p.description)}">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="${ORIGIN}/og-image.png">
-<meta property="og:image:type" content="image/png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="${OG_ALT}">
+<meta property="og:image" content="${ORIGIN}${og.src}">
+<meta property="og:image:type" content="${og.type}">
+<meta property="og:image:width" content="${og.width}">
+<meta property="og:image:height" content="${og.height}">
+<meta property="og:image:alt" content="${esc(og.alt)}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(p.title)}">
 <meta name="twitter:description" content="${esc(p.description)}">
-<meta name="twitter:image" content="${ORIGIN}/og-image.png">
-<meta name="twitter:image:alt" content="${OG_ALT}">
+<meta name="twitter:image" content="${ORIGIN}${og.src}">
+<meta name="twitter:image:alt" content="${esc(og.alt)}">
 <link rel="icon" href="/icons/paw.svg" type="image/svg+xml">
 <link rel="icon" href="/icons/paw-48.png" type="image/png" sizes="48x48">
 <link rel="apple-touch-icon" href="/icons/paw-180.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="preload" href="/${font}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/${css}">
-<style>${pageCss}
+<style>${pageCss}${p.css ?? ''}
 </style>
 <script type="application/ld+json">
 ${structuredData(p)}
@@ -216,17 +223,17 @@ ${structuredData(p)}
   <nav class="snav" aria-label="Pages">${navLinks(p.slug, topPages)}</nav>
   <a class="rv-btn rv-btn--sm rv-btn--primary open" href="/">Open pawbs</a>
 </header>
-<main class="sp">
+<main class="sp${p.wide ? ' sp--wide' : ''}">
   <p class="crumbs rv-label"><a href="/">pawbs</a> // ${p.crumb}</p>
-  <h1>${p.h1}</h1>
-  <p class="lede">${p.lede}</p>
+${p.hero ?? `  <h1>${p.h1}</h1>
+  <p class="lede">${p.lede}</p>`}
 ${body}
   <section class="cta rv-brackets" aria-label="Open pawbs">
     <p>Free and open source, no ads, no account needed. Pick e621 or e926 and start browsing.</p>
     <a class="rv-btn rv-btn--primary" href="/">Open pawbs</a>
     ${p.slug === 'install' ? '<a class="rv-btn" href="/features">See the features</a>' : '<a class="rv-btn" href="/install">How to install</a>'}
   </section>
-</main>
+${p.after ?? ''}</main>
 <footer class="sfoot">
   <div class="in">
     <nav aria-label="All pages"><a href="/">Open pawbs</a>${navLinks('')}</nav>

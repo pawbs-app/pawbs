@@ -22,6 +22,10 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 - Favourites and collections, plus the e621 account's favourites when signed in
 - Similar pictures and artist links
 - Viewer with zoom, slideshow, video controls with an A-B loop, keyboard shortcuts and touch gestures
+- On phones: a tab bar, a full-screen Feed layout, swipe, pinch, double-tap and hold gestures, a left- or right-hand layout, and the system share sheet both ways (Android)
+- Optional encryption of everything on the device, unlocked with a passkey or a password, with auto-lock
+- No trace in the browser history (on by default in the installed app), and a private session
+- Install in disguise: a working calculator, notes app or timer that opens pawbs only with a code
 - Blacklist, imported from the e621 account
 - Encrypted transfer of all data to another device, and backup files
 - Installs as an app (iPhone and iPad: Safari, Share, Add to Home Screen; Android, Windows, macOS, Linux, ChromeOS: the browser's install option) and starts offline
@@ -29,7 +33,7 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 ## Links
 
 - [pawbs](https://pawbs.app/): the app itself
-- [Features](https://pawbs.app/features): everything pawbs does, in detail
+- [Features](https://pawbs.app/features): every feature by theme (247), with screenshots and short videos of pawbs on a computer and a phone
 - [Search](https://pawbs.app/search): tag autocomplete, the query assistant, saved searches
 - [Pool reader](https://pawbs.app/pools): reading e621 pools and comics in order
 - [Install](https://pawbs.app/install): how to install pawbs on iPhone, iPad, Android, Windows, macOS, Linux and ChromeOS

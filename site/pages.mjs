@@ -7,6 +7,8 @@
    change it with the text, not with every build. `top: false` keeps a page out of the title bar's
    links (the footer lists every page). */
 
+import { featuresPage } from './features-page.mjs'
+
 /** FAQ: shown on /faq and given to search engines as FAQPage data. Answers are HTML. */
 export const faq = [
   {
@@ -57,78 +59,8 @@ export const faq = [
 const kbd = (k) => `<kbd>${k}</kbd>`
 
 export const pages = [
-  {
-    slug: 'features',
-    nav: 'Features',
-    title: 'pawbs features: e621 search, pools, slideshow, favourites',
-    description: 'Everything pawbs does as an e621 and e926 viewer: tag autocomplete, a query assistant, followed tags and searches, a pool reader, sets, slideshow, video A-B loop, favourites.',
-    updated: '2026-11-26',
-    crumb: 'Features',
-    h1: 'A faster way to browse e621',
-    lede: 'pawbs puts e621 and e926 in a fast, clean interface made for long sessions, on a phone as well as on a computer. Here is what it does.',
-    body: `
-<h2>Search</h2>
-<div class="cards">
-  <div class="card"><h3>Autocomplete</h3><p>Tags with their aliases, post counts and categories, filters such as <code>order:</code>, <code>rating:</code> or <code>date:</code> and their values, pools by name, and your recent and saved&nbsp;searches.</p></div>
-  <div class="card"><h3>Query assistant</h3><p>Press ${kbd('Q')} for a form over e621’s search language: all of, any of and none of, rating, media type, sort, dates, score, size, video length and more. It checks the query as you write it.</p></div>
-  <div class="card"><h3>Refine</h3><p>The tags that recur in what you are looking at, one click to require them and Shift+click to exclude them.</p></div>
-  <div class="card"><h3>Trending and rising</h3><p>The tags searched most today and the ones gaining posts fast, on Home, without the ones your blacklist hides.</p></div>
-  <div class="card"><h3>Jump to a date</h3><p>Any search from a day back, a week, a month or years ago, as a term you can see and remove in one click.</p></div>
-  <div class="card"><h3>Similar pictures</h3><p>Other versions, edits, higher resolutions and re-uploads of any post, closest first, and the artist’s galleries and links elsewhere.</p></div>
-</div>
-
-<p><a href="/search">More about search in pawbs</a></p>
-
-<h2>Browse and view</h2>
-<ul class="list">
-  <li>Three grid layouts (justified rows, masonry columns, squares), sized with a slider and laid out from known image sizes, so nothing jumps while it loads. Infinite scroll.</li>
-  <li>A full-screen gallery: ${kbd('←')} ${kbd('→')} step through the list, ${kbd('Z')} zooms (fit, width, 1:1, drag to pan), ${kbd('I')} shows details, ${kbd('F')} full screen, ${kbd('N')} notes, ${kbd('Esc')} returns to the grid where you were. Swipe on touch screens.</li>
-  <li>Slideshow (${kbd('P')}): pictures stay a few seconds, videos play to the end, and the screen stays awake.</li>
-  <li>Videos in the rendition closest to your screen, with scrubbing, frame steps and an A-B loop.</li>
-  <li>Details: tags by category with counts, wiki excerpts, sources, pools, parent and child posts, description, comments and votes.</li>
-  <li>Popular posts by day, week or month, and a history of what you viewed and searched.</li>
-</ul>
-
-<h2>Follow and read</h2>
-<div class="cards">
-  <div class="card"><h3>Following</h3><p>Follow a tag, an artist or a whole search and see how many new posts each got since you last looked, marked as new in its results, or read them all as one stream. Saved pools show their new pages in the same list.</p></div>
-  <div class="card"><h3>Pools</h3><p>Read pools in order, as a grid, in the gallery or as one long scroll. pawbs remembers where you left each one. <a href="/pools">The&nbsp;pool&nbsp;reader</a></p></div>
-  <div class="card"><h3>Sets</h3><p>Browse public sets and keep them in a library, no account needed. With an account, make and edit your own.</p></div>
-</div>
-
-<h2>Keep and organise</h2>
-<ul class="list">
-  <li>Favourites on your device, filtered and sorted, optionally synced with your e621 favourites.</li>
-  <li>Collections: your own named lists of posts, made without an account.</li>
-  <li>Select many posts at once (Ctrl or Shift click, or a long press) to favourite them, add them to a collection or set, or hide them together.</li>
-  <li>“Not interested”: put a single post out of sight for good, with Undo.</li>
-</ul>
-
-<h2>Fast by design</h2>
-<ul class="list">
-  <li>The next posts load and decode before you get there, in the direction you are browsing; slow connections and data saver scale it down.</li>
-  <li>While you scroll, the thumbnails and results of the next screens load ahead, so the grid stays filled.</li>
-  <li>Pictures in the sharpest size the space needs, not more.</li>
-  <li>Requests are scheduled under the site’s rate limit, with what you wait for first.</li>
-  <li>Back is instant and lands exactly where you were.</li>
-</ul>
-
-<h2>Private and yours</h2>
-<ul class="list">
-  <li>No ads, no tracking, no account of its own. Requests go straight from your browser to e621 or e926.</li>
-  <li>A blacklist in the search language, imported from your e621 account, to hide or mask posts.</li>
-  <li>Several sites, each with its own account.</li>
-  <li>Backups of everything, optionally encrypted with a password, and an end-to-end encrypted transfer to another device with a QR code.</li>
-</ul>
-
-<h2>An app, without the store</h2>
-<ul class="list">
-  <li>Installs on iPhone, iPad, Android, Windows, macOS, Linux and ChromeOS. <a href="/install">How&nbsp;to&nbsp;install</a></li>
-  <li>Starts offline and updates itself.</li>
-  <li>On Chrome and Edge, the app’s icon shows how many new posts and pages what you follow has.</li>
-  <li>A full-screen mode for tablets whose browser paints its own bar over the app.</li>
-</ul>`,
-  },
+  // The features page: site/features-page.mjs (media, and every feature from site/features.mjs).
+  featuresPage,
   {
     slug: 'pools',
     nav: 'Pools',
