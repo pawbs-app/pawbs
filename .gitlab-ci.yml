@@ -156,6 +156,9 @@ smoke-test:
       curl -fsSI http://app:8080/favicon.ico | grep -i '^content-type: image/' > /dev/null
       curl -fsSI http://app:8080/icons/paw.svg | grep -i '^cache-control: no-cache' > /dev/null
       curl -fsS http://app:8080/llms.txt | grep '^# pawbs' > /dev/null
+      # Its long version (scripts/site-pages.mjs): every feature and the FAQ, as text.
+      curl -fsSI http://app:8080/llms-full.txt | grep -i '^content-type: text/plain' > /dev/null
+      curl -fsS http://app:8080/llms-full.txt | grep '^## Questions and answers' > /dev/null
       # The page itself says what pawbs is, for crawlers that do not run JavaScript.
       curl -fsS http://app:8080/ | grep '<h1>pawbs: a fast, private e621' > /dev/null
       # The static pages (site/pages.mjs, named in site/slugs.json) at their clean addresses, listed in

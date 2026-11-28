@@ -1,10 +1,12 @@
-// Writes the static pages (site/pages.mjs) into dist/ after `vite build`, and dist/sitemap.xml.
+// Writes the static pages (site/pages.mjs) into dist/ after `vite build`, dist/sitemap.xml and
+// dist/llms-full.txt.
 // They use the app's own stylesheet and typeface (their hashed names read from dist/index.html), a
 // title bar like the app's, and no script: crawlers and visitors without JavaScript read them whole.
 // nginx serves dist/<slug>.html at /<slug> (deploy/nginx.conf), the service worker leaves these
 // addresses to the network (vite.config.ts), and `npm run preview` maps them the same way.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { pages, faq } from '../site/pages.mjs'
+import { featureIndex } from '../site/features.mjs'
 import { PAW } from './paw.mjs'
 
 const ORIGIN = 'https://pawbs.app'
@@ -262,3 +264,36 @@ writeFileSync(
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, d]) => `  <url>\n    <loc>${u}</loc>\n    <lastmod>${d}</lastmod>\n  </url>`).join('\n')}\n</urlset>\n`,
 )
 console.log('dist/sitemap.xml', urls.length, 'addresses')
+
+// llms-full.txt: the long version of public/llms.txt, for tools that read a site from one file: its summary
+// and facts, then every feature (site/features.mjs) and the FAQ, in Markdown, from the same sources as
+// the pages, then its links (without the one to this file).
+const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
+const md = (html) =>
+  html
+    .replace(/<(code|kbd)>(.*?)<\/\1>/g, '`$2`')
+    .replace(/<b>(.*?)<\/b>/g, '**$1**')
+    .replace(/<a href="([^"]+)">(.*?)<\/a>/g, (_, href, t) => `[${t}](${href.startsWith('/') ? ORIGIN + href : href})`)
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(amp|lt|gt|quot|#39);/g, (e) => ENTITIES[e])
+    .replace(/\s+/g, ' ')
+    .trim()
+const WHERE = { pc: '(PC) ', phone: '(Phone) ', both: '' }
+const llms = readFileSync('dist/llms.txt', 'utf8')
+const linksAt = llms.indexOf('\n## Links')
+if (linksAt < 0) throw new Error('site-pages: public/llms.txt needs a "## Links" section')
+const featureCount = featureIndex.reduce((n, t) => n + t.groups.reduce((m, g) => m + g.items.length, 0), 0)
+const full =
+  [
+    llms.slice(0, linksAt).trimEnd(),
+    `## Every feature (${featureCount}), by theme\n\n(PC) marks what is for a mouse, a keyboard or a wide screen; (Phone) what is for touch screens and the app installed on a phone. The rest works on both. With screenshots and short videos: ${ORIGIN}/features`,
+    ...featureIndex.map((t) => `### ${t.theme}\n` + t.groups.map((g) => (g.name ? `\n#### ${g.name}\n\n` : '\n') + g.items.map(([w, x]) => `- ${WHERE[w]}${md(x)}`).join('\n')).join('\n')),
+    `## Questions and answers\n\nThe FAQ, as on ${ORIGIN}/faq`,
+    ...faq.map((g) => `### ${g.group}\n\n` + g.items.map(([q, a]) => `#### ${q}\n\n${md(a)}`).join('\n\n')),
+    llms.slice(linksAt + 1).replace(/^- \[Full reference\].*\n/m, '').trimEnd(),
+  ].join('\n\n') + '\n'
+if (/<\/?(a|b|code|kbd|span|p)\b/.test(full) || !faq.every((g) => g.items.every(([q]) => full.includes(`#### ${q}\n`)))) {
+  throw new Error('site-pages: llms-full.txt kept HTML or lost the FAQ')
+}
+writeFileSync('dist/llms-full.txt', full)
+console.log('dist/llms-full.txt', featureCount, 'features,', faq.flatMap((g) => g.items).length, 'questions')

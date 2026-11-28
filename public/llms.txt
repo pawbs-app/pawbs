@@ -33,6 +33,7 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 ## Links
 
 - [pawbs](https://pawbs.app/): the app itself
+- [Full reference](https://pawbs.app/llms-full.txt): this file plus every feature by theme and the whole FAQ, in one Markdown file
 - [Features](https://pawbs.app/features): every feature by theme (247), with screenshots and short videos of pawbs on a computer and a phone
 - [Search](https://pawbs.app/search): tag autocomplete, the query assistant, saved searches
 - [Pool reader](https://pawbs.app/pools): reading e621 pools and comics in order
