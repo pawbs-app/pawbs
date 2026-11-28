@@ -42,5 +42,6 @@ pawbs talks to e621 and e926 through their public API, straight from the user's 
 - [pawbs for e926](https://pawbs.app/e926): using pawbs with e926, the safe-for-work version of e621
 - [About](https://pawbs.app/about): why pawbs exists and how it works
 - [Privacy](https://pawbs.app/privacy): what stays on the device and what the server sees
+- [Security](https://pawbs.app/security): is pawbs safe with an e621 account, where the API key is kept and sent, and how to check it
 - [Source code](https://github.com/pawbs-app/pawbs): the code, under the GNU AGPL-3.0
 - [Contact](mailto:contact@pawbs.app)
