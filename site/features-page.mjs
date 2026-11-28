@@ -317,7 +317,8 @@ export const featuresPage = {
       description: c.text,
       thumbnailUrl: `${origin}${M}${key}-poster.webp`,
       contentUrl: `${origin}${M}${key}.mp4`,
-      uploadDate: '2026-11-27',
+      // A full date-time with its timezone (ISO 8601): search engines reject a date alone here.
+      uploadDate: '2026-11-27T00:00:00+00:00',
       duration: `PT${c.s}S`,
       width: c.w,
       height: c.h,
